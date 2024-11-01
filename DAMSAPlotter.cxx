@@ -28,15 +28,15 @@ DAMSAPlotter::DAMSAPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFil
 	// 세로로 정렬될 버튼 프레임을 메인 프레임에 추가
 	fButtonFrame = new TGHorizontalFrame(this, w-5, 10);
 
-	// Next Event 버튼 추가
-	fNextEventButton = new TGTextButton(fButtonFrame, "Next Event");
-	fNextEventButton->Connect("Clicked()", "DAMSAPlotter", this, "OnNextEventButtonClick()");
-	fButtonFrame->AddFrame(fNextEventButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
-
 	// Previous Event 버튼 추가
 	fPreviousEventButton = new TGTextButton(fButtonFrame, "Previous Event");
 	fPreviousEventButton->Connect("Clicked()", "DAMSAPlotter", this, "OnPreviousEventButtonClick()");
 	fButtonFrame->AddFrame(fPreviousEventButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
+
+	// Next Event 버튼 추가
+	fNextEventButton = new TGTextButton(fButtonFrame, "Next Event");
+	fNextEventButton->Connect("Clicked()", "DAMSAPlotter", this, "OnNextEventButtonClick()");
+	fButtonFrame->AddFrame(fNextEventButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
 
 	// Event text entry 추가
 	fEventEntry = new TGTextEntry(fButtonFrame, new TGTextBuffer(10));
@@ -167,53 +167,38 @@ void DAMSAPlotter::DrawHistograms() {
 
 	// 히스토그램 그리기
 	for (int i = 0; i < 8; ++i) {
-		histograms[i]->SetAxisRange(yMin, yMax, "Y"); // y축 범위 설정
+		histograms[i]->SetAxisRange(yMin, yMax, "Y");
 		histograms[i]->SetLineColor(i+1);
 
 		if (i == 0) {
-			histograms[i]->Draw(); // 첫 번째 히스토그램은 새로운 그리기로 그리기
+			histograms[i]->Draw();
 		} else {
-			histograms[i]->Draw("SAME"); // 나머지 히스토그램은 SAME 옵션으로 그리기
+			histograms[i]->Draw("SAME");
 		}
 	}
 	// 마커 그리기
-	fDet1PulseStartMarker->SetMarkerColor(1);
-	fDet2PulseStartMarker->SetMarkerColor(2);
-	fChe1PulseStartMarker->SetMarkerColor(3);
-	fChe2PulseStartMarker->SetMarkerColor(4);
-	fDet1PulseEndMarker->SetMarkerColor(1);
-	fDet2PulseEndMarker->SetMarkerColor(2);
-	fChe1PulseEndMarker->SetMarkerColor(3);
-	fChe2PulseEndMarker->SetMarkerColor(4);
-	fDet1PulseStartMarker->SetMarkerStyle(21);
-	fDet2PulseStartMarker->SetMarkerStyle(21);
-	fChe1PulseStartMarker->SetMarkerStyle(21);
-	fChe2PulseStartMarker->SetMarkerStyle(21);
-	fDet1PulseEndMarker->SetMarkerStyle(21);
-	fDet2PulseEndMarker->SetMarkerStyle(21);
-	fChe1PulseEndMarker->SetMarkerStyle(21);
-	fChe2PulseEndMarker->SetMarkerStyle(21);
-	fDet1PulseStartMarker->SetMarkerSize(2);
-	fDet2PulseStartMarker->SetMarkerSize(2);
-	fChe1PulseStartMarker->SetMarkerSize(2);
-	fChe2PulseStartMarker->SetMarkerSize(2);
-	fDet1PulseEndMarker->SetMarkerSize(2);
-	fDet2PulseEndMarker->SetMarkerSize(2);
-	fChe1PulseEndMarker->SetMarkerSize(2);
-	fChe2PulseEndMarker->SetMarkerSize(2);
-	fDet1PulseStartMarker->Draw();
-	fDet2PulseStartMarker->Draw();
-	fChe1PulseStartMarker->Draw();
-	fChe2PulseStartMarker->Draw();
-	fDet1PulseEndMarker->Draw();
-	fDet2PulseEndMarker->Draw();
-	fChe1PulseEndMarker->Draw();
-	fChe2PulseEndMarker->Draw();
+  TMarker* markers[4][2] = {
+    {fDet1PulseStartMarker, fDet1PulseEndMarker},
+    {fDet2PulseStartMarker, fDet2PulseEndMarker},
+    {fChe1PulseStartMarker, fChe1PulseEndMarker},
+    {fChe2PulseStartMarker, fChe2PulseEndMarker},
+  };
+  for( int i = 0; i < 4; i++ ) {
+    for( int j = 0; j < 2; j++ ) {
+      markers[i][0]->SetMarkerColor(i+1);
+      markers[i][1]->SetMarkerColor(i+1);
+      markers[i][0]->SetMarkerStyle(21);
+      markers[i][1]->SetMarkerStyle(21);
+      markers[i][0]->SetMarkerSize(2);
+      markers[i][1]->SetMarkerSize(2);
+      markers[i][0]->Draw();
+      markers[i][1]->Draw();
+    }
+  }
 
 	// Threshold line 그리기
 	fDet1ThresholdLine->Draw();
 	fDet2ThresholdLine->Draw();
-
 
 	fEmbeddedCanvas->GetCanvas()->Update(); // 캔버스 업데이트
 
@@ -236,27 +221,25 @@ DAMSAPlotter::~DAMSAPlotter() {
 }
 
 void DAMSAPlotter::OnNextEventButtonClick() {
-	fEventNumber++; // 이벤트 번호 증가
+	fEventNumber++;// {{{
 	std::cout << "////////////////////////////////////////////////////////////\nCurrent Event Number: " << fEventNumber << std::endl;
 
-	// 새로운 히스토그램 로드 및 그리기
 	LoadHistograms();
-
-	DrawHistograms(); // 히스토그램 다시 그리기
-}
+	DrawHistograms();
+}// }}}
 
 void DAMSAPlotter::OnPreviousEventButtonClick() {
-	fEventNumber--; // 이벤트 번호 감소 
+	fEventNumber--; // 이벤트 번호 감소 {{{
 	std::cout << "////////////////////////////////////////////////////////////\nCurrent Event Number: " << fEventNumber << std::endl;
 
 	// 새로운 히스토그램 로드 및 그리기
 	LoadHistograms();
 
 	DrawHistograms(); // 히스토그램 다시 그리기
-}
+}// }}}
 
 void DAMSAPlotter::OnGoToEventButtonClick() {
-	const char* input = fEventEntry->GetText(); // 입력된 텍스트 가져오기
+	const char* input = fEventEntry->GetText(); // 입력된 텍스트 가져오기{{{
 	int eventNumber = std::atoi(input); // 문자열을 정수로 변환
 	if( eventNumber >= 1 && eventNumber <= fMaxEventNumber )
 	{
@@ -271,7 +254,7 @@ void DAMSAPlotter::OnGoToEventButtonClick() {
 	{
 		std::cerr << "Invalid event number!\n";
 	}
-}
+}// }}}
 
 // Exit 버튼 클릭 시 프로그램 종료
 void DAMSAPlotter::OnExitButtonClick() {
@@ -280,7 +263,7 @@ void DAMSAPlotter::OnExitButtonClick() {
 
 // 창 크기 변경 시 호출되는 함수
 void DAMSAPlotter::HandleResize() {
-	// 메인 프레임의 현재 크기 얻기
+	// 메인 프레임의 현재 크기 얻기{{{
 	int main_w = GetWidth();
 	int main_h = GetHeight();
 
@@ -288,7 +271,7 @@ void DAMSAPlotter::HandleResize() {
 	fEmbeddedCanvas->Resize(main_w - 20, main_h - fButtonFrameHeight - 40); // 여백 고려하여 조정
 	fEmbeddedCanvas->GetCanvas()->Modified();
 	fEmbeddedCanvas->GetCanvas()->Update();
-}
+}// }}}
 
 
 float DAMSAPlotter::GaussianKernel(float x, float xi, float bandwidth) {
@@ -311,7 +294,7 @@ float DAMSAPlotter::GaussianKernelRegression(const std::vector<float>& x_data, c
 }/*}}}*/
 
 TH1D* DAMSAPlotter::PerformKDE(TH1D* hist, int nSmoothBins, float bandwidth) {
-	// KDE를 위한 새로운 히스토그램 생성
+	// KDE를 위한 새로운 히스토그램 생성{{{
 	int nBins = hist->GetNbinsX();
 	if( nSmoothBins == 0 ) nSmoothBins = nBins;
 	float xMin = hist->GetXaxis()->GetXmin();
@@ -337,26 +320,8 @@ TH1D* DAMSAPlotter::PerformKDE(TH1D* hist, int nSmoothBins, float bandwidth) {
 		esty.push_back(estimatedY);
 	}
 
-	// KDE 커널 함수 (가우시안)
-	/*
-	   for (int i = 1; i <= nSmoothBins; i++) {
-	   float x = kdeHist->GetXaxis()->GetBinCenter(i);
-	   float numerator = 0.0f;
-	   float denominator = 0.0f;
-	   float weight;
-	   for (const auto& value : data) {
-	   weight = TMath::Gaus(x, value, bandwidth);
-	   numerator += weight * data[i];
-	   denominator += weight;
-	   }
-	   float kdeEstimate = numerator / denominator;
-	   std::cout << kdeEstimate << std::endl;
-	   kdeHist->SetBinContent(i, kdeEstimate);
-	   }
-	   */
-
 	return kdeHist;
-}
+}// }}}
 
 
 bool DAMSAPlotter::FindPulseRange(TH1D* hist, float* start, float* end, float threshold) {
