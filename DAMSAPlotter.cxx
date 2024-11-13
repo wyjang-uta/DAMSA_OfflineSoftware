@@ -56,6 +56,10 @@ DAMSAPlotter::DAMSAPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFil
 
 	// 마커 초기화
 
+  fDet1PulseFound = false;
+  fDet2PulseFound = false;
+  fChe1PulseFound = false;
+  fChe2PulseFound = false;
 	fDet1PulseStartMarker = new TMarker();
 	fDet2PulseStartMarker = new TMarker();
 	fChe1PulseStartMarker = new TMarker();
@@ -97,40 +101,46 @@ void DAMSAPlotter::LoadHistograms()
 	float pulseStart, pulseEnd;
 	float pedestal;
 
-	pedestal = FindPedestal(fDet1Histogram);
+	pedestal = FindPedestal(fDet1Histogram, 50, 70);
+  std::cout << "Detector 1 Pedestal: " << pedestal << '\n';
 	fDet1ThresholdLine->SetX1(0);
 	fDet1ThresholdLine->SetX2(204.8);
 	fDet1ThresholdLine->SetY1(pedestal);
 	fDet1ThresholdLine->SetY2(pedestal);
 	fDet1ThresholdLine->SetLineColor(1);
-	FindPulseRange(fDet1HistogramKDE, &pulseStart, &pulseEnd, pedestal);
-	fDet1PulseStartMarker->SetX(pulseStart);
-	fDet1PulseStartMarker->SetY(fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseStart)));
-	fDet1PulseStartMarker->SetMarkerStyle(20);
-	fDet1PulseEndMarker->SetX(pulseEnd);
-	fDet1PulseEndMarker->SetY(fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseEnd)));
-	fDet1PulseEndMarker->SetMarkerStyle(20);
-	pedestal = FindPedestal(fDet2Histogram, 50);
+	fDet1PulseFound = FindPulseRange(fDet1HistogramKDE, &pulseStart, &pulseEnd, pedestal);
+  if( fDet1PulseFound )
+  {
+    fDet1PulseStartMarker->SetX(pulseStart);
+    fDet1PulseStartMarker->SetY(fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseStart)));
+    fDet1PulseStartMarker->SetMarkerStyle(20);
+    fDet1PulseEndMarker->SetX(pulseEnd);
+    fDet1PulseEndMarker->SetY(fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseEnd)));
+    fDet1PulseEndMarker->SetMarkerStyle(20);
+  }
+	pedestal = FindPedestal(fDet2Histogram, 0, 10);
 	fDet2ThresholdLine->SetX1(0);
 	fDet2ThresholdLine->SetX2(204.8);
 	fDet2ThresholdLine->SetY1(pedestal);
 	fDet2ThresholdLine->SetY2(pedestal);
 	fDet2ThresholdLine->SetLineColor(2);
-	FindPulseRange(fDet2HistogramKDE, &pulseStart, &pulseEnd, pedestal);
-	fDet2PulseStartMarker->SetX(pulseStart);
-	fDet2PulseStartMarker->SetY(fDet2HistogramKDE->GetBinContent(fDet2HistogramKDE->FindBin(pulseStart)));
-	fDet2PulseStartMarker->SetMarkerStyle(20);
-	fDet2PulseEndMarker->SetX(pulseEnd);
-	fDet2PulseEndMarker->SetY(fDet2HistogramKDE->GetBinContent(fDet2HistogramKDE->FindBin(pulseEnd)));
-	fDet2PulseEndMarker->SetMarkerStyle(20);
-	//FindPulseRange(fChe1HistogramKDE, &pulseStart, &pulseEnd, FindCherenkovPedestal(fChe1Histogram));
+	fDet2PulseFound = FindPulseRange(fDet2HistogramKDE, &pulseStart, &pulseEnd, pedestal);
+  if( fDet2PulseFound ) {
+    fDet2PulseStartMarker->SetX(pulseStart);
+    fDet2PulseStartMarker->SetY(fDet2HistogramKDE->GetBinContent(fDet2HistogramKDE->FindBin(pulseStart)));
+    fDet2PulseStartMarker->SetMarkerStyle(20);
+    fDet2PulseEndMarker->SetX(pulseEnd);
+    fDet2PulseEndMarker->SetY(fDet2HistogramKDE->GetBinContent(fDet2HistogramKDE->FindBin(pulseEnd)));
+    fDet2PulseEndMarker->SetMarkerStyle(20);
+  }
+	//fChe1PulseFound = FindPulseRange(fChe1HistogramKDE, &pulseStart, &pulseEnd, FindCherenkovPedestal(fChe1Histogram));
 	fChe1PulseStartMarker->SetX(pulseStart);
 	fChe1PulseStartMarker->SetY(fChe1HistogramKDE->GetBinContent(fChe1HistogramKDE->FindBin(pulseStart)));
 	fChe1PulseStartMarker->SetMarkerStyle(20);
 	fChe1PulseEndMarker->SetX(pulseEnd);
 	fChe1PulseEndMarker->SetY(fChe1HistogramKDE->GetBinContent(fChe1HistogramKDE->FindBin(pulseEnd)));
 	fChe1PulseEndMarker->SetMarkerStyle(20);
-	//FindPulseRange(fChe2HistogramKDE, &pulseStart, &pulseEnd, FindCherenkovPedestal(fChe2Histogram));
+	//fChe2PulseFound = FindPulseRange(fChe2HistogramKDE, &pulseStart, &pulseEnd, FindCherenkovPedestal(fChe2Histogram));
 	fChe2PulseStartMarker->SetX(pulseStart);
 	fChe2PulseStartMarker->SetY(fChe2HistogramKDE->GetBinContent(fChe2HistogramKDE->FindBin(pulseStart)));
 	fChe2PulseStartMarker->SetMarkerStyle(20);
@@ -203,10 +213,12 @@ void DAMSAPlotter::DrawHistograms()
       markers[i][1]->SetMarkerStyle(21);
       markers[i][0]->SetMarkerSize(2);
       markers[i][1]->SetMarkerSize(2);
-      markers[i][0]->Draw();
-      markers[i][1]->Draw();
     }
   }
+  if( fDet1PulseFound ) { fDet1PulseStartMarker->Draw(); fDet1PulseEndMarker->Draw(); }
+  if( fDet2PulseFound ) { fDet2PulseStartMarker->Draw(); fDet2PulseEndMarker->Draw(); }
+  if( fChe1PulseFound ) { fChe1PulseStartMarker->Draw(); fChe1PulseEndMarker->Draw(); }
+  if( fChe2PulseFound ) { fChe2PulseStartMarker->Draw(); fChe2PulseEndMarker->Draw(); }
 
 	// Threshold line 그리기
 	fDet1ThresholdLine->Draw();
@@ -360,7 +372,7 @@ bool DAMSAPlotter::FindPulseRange(TH1D* hist, float* start, float* end, float th
 		if( !inPulse && y < threshold ) {
 			// check the next 30 bins monotonically decrease
 			bool monotonicDecrease = true;
-			for( size_t j = i; j < i+30; j++){
+			for( size_t j = i; j < i+20; j++){
 				float currentValue = hist->GetBinContent(j);
 				float nextValue = hist->GetBinContent(j+1);
 				if( currentValue <= nextValue )
@@ -379,37 +391,33 @@ bool DAMSAPlotter::FindPulseRange(TH1D* hist, float* start, float* end, float th
 		}
 	}
 	// Find pulse end
-	for( size_t i = hist->GetMinimumBin(); i <= hist->GetNbinsX(); ++i ) {
-		x = hist->GetBinCenter(i);
-		y = hist->GetBinContent(i);
-	       	if ( y >= threshold ) {
-			pulseEnd = x;
-			found = true;
-			break;
-		}
-	}
-	/*
-	for( size_t i = hist->FindBin(pulseStart); i < hist->GetNbinsX(); ++i ) {
-		x = hist->GetBinCenter(i);
-		y = hist->GetBinContent(i);
-		y_next = hist->GetBinContent(i+5);
-	       	if ( y >= threshold && y_next >= y ) {
-			pulseEnd = x;
-			found = true;
-			break;
-		}
-	}
-	*/
+  if( inPulse )
+  {
+    for( size_t i = hist->GetMinimumBin(); i <= hist->GetNbinsX(); ++i ) {
+      x = hist->GetBinCenter(i);
+      y = hist->GetBinContent(i);
+      if ( y >= threshold ) {
+        pulseEnd = x;
+        found = true;
+        break;
+      }
+      else if ( i == hist->GetNbinsX() )
+      {
+        pulseEnd = x;
+        found = true;
+      }
+    }
+  }
 
 	// when range could not found after scanned all data,
 	// pulseEnd is set to be the very last element of the data
 	if( pulseEnd == 0.0f ) {
 		pulseEnd = hist->GetXaxis()->GetXmax()-1;
 	}
-	std::cout << "(PulseStart, PulseEnd) = (" << pulseStart << ", " << pulseEnd << ")\n";
 
 	*start = pulseStart;
 	*end = pulseEnd;
+
 	return found;
 }/*}}}*/
 
@@ -431,33 +439,19 @@ std::pair<float, float> DAMSAPlotter::FindMeanAndVariance(TH1D* hist, int startB
 	return std::make_pair(mean, variance);
 }// }}}
 
-float DAMSAPlotter::FindPedestal(TH1D* hist, int windowSize)
+float DAMSAPlotter::FindPedestal(TH1D* hist, float start_ns, float end_ns)
 {// {{{
 	// Pedestal finding algorithm
-	
-  /*
-	int numBins = 500;
-	float minVariance = std::numeric_limits<float>::max();
-	float pedestal = 0.0f;
-
-	// 슬라이딩 윈도우를 사용하여 분산이 가장 작은 구간 찾기
-	for (int startBin = 1; startBin <= numBins - windowSize; ++startBin) {
-		int endBin = startBin + windowSize - 1;
-		auto [mean, variance] = FindMeanAndVariance(hist, startBin, endBin);
-
-		if (variance < minVariance) {
-			minVariance = variance;
-			pedestal = mean;
-		}
-	}
-
-	std::cout << hist->GetName() << " pedestal : " << pedestal << '\n';
-  */
-  const int nbin = 20;
+  //   Look for first 0 - 20 ns interval to get average ADC and standard deviation(sigma).
+  //   Return average - 2.5 sigma
+  int start_bin = hist->FindBin(start_ns);
+  int end_bin = hist->FindBin(end_ns);
+  int nbin = end_bin - start_bin + 1;
   float mean = 0.0f;
   float sigma = 0.0f;
   float bin_content;
-  for( int i = 1; i <= nbin; ++i ) {
+
+  for( int i = start_bin; i <= end_bin; ++i ) {
     bin_content = hist->GetBinContent(i);
     mean += bin_content;
     sigma += bin_content * bin_content;
@@ -465,7 +459,7 @@ float DAMSAPlotter::FindPedestal(TH1D* hist, int windowSize)
   mean /= nbin;
   sigma = sqrt( sigma/nbin - (mean * mean) );
 
-	return mean - 2.5 * sigma;
+	return mean - 3.0 * sigma;
 }// }}}
 
 float DAMSAPlotter::FindCherenkovPedestal(TH1D* hist)
