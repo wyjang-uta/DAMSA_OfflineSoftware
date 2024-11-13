@@ -11,8 +11,8 @@
 
 #include "DAMSAPlotter.h"
 
-DAMSAPlotter::DAMSAPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFile) : TGMainFrame(p, w, h), fEventNumber(1), fHistFile(histFile) {
-
+DAMSAPlotter::DAMSAPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFile) : TGMainFrame(p, w, h), fEventNumber(1), fHistFile(histFile)
+{// {{{
 	fButtonFrameHeight = 10;
 	fMaxEventNumber = fHistFile->GetNkeys()/4;
 
@@ -82,9 +82,10 @@ DAMSAPlotter::DAMSAPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFil
 	Resize(w,h);  // 너비 200, 높이 100으로 설정, here the +1 is a magic number. 
 	MapSubwindows();   // 모든 서브 윈도우를 맵핑
 	MapWindow();       // 메인 프레임을 맵핑하여 표시
-}
+}// }}}
 
-void DAMSAPlotter::LoadHistograms() {
+void DAMSAPlotter::LoadHistograms()
+{// {{{
 	fDet1Histogram = (TH1D*)fHistFile->Get(Form("det1_evt_%d", fEventNumber));
 	fDet2Histogram = (TH1D*)fHistFile->Get(Form("det2_evt_%d", fEventNumber));
 	fChe1Histogram = (TH1D*)fHistFile->Get(Form("che1_evt_%d", fEventNumber));
@@ -136,9 +137,10 @@ void DAMSAPlotter::LoadHistograms() {
 	fChe2PulseEndMarker->SetX(pulseEnd);
 	fChe2PulseEndMarker->SetY(fChe2HistogramKDE->GetBinContent(fChe2HistogramKDE->FindBin(pulseEnd)));
 	fChe2PulseEndMarker->SetMarkerStyle(20);
-}
+}// }}}
 
-void DAMSAPlotter::DrawHistograms() {
+void DAMSAPlotter::DrawHistograms()
+{// {{{
 	fEmbeddedCanvas->GetCanvas()->cd();  // 캔버스 선택
 
 	// 히스토그램 배열
@@ -152,6 +154,15 @@ void DAMSAPlotter::DrawHistograms() {
 		fChe1HistogramKDE,
 		fChe2HistogramKDE
 	};
+
+  fDet1Histogram->SetTitle("Detector 1");
+  fDet2Histogram->SetTitle("Detector 2");
+  fChe1Histogram->SetTitle("Cherenkov 1");
+  fChe2Histogram->SetTitle("Cherenkov 2");
+  fDet1HistogramKDE->SetTitle("Detector 1 (KDE)");
+  fDet2HistogramKDE->SetTitle("Detector 2 (KDE)");
+  fChe1HistogramKDE->SetTitle("Cherenkov 1 (KDE)");
+  fChe2HistogramKDE->SetTitle("Cherenkov 2 (KDE)");
 
 	// y축 범위 계산
 	float minY = 1e10;
@@ -176,6 +187,7 @@ void DAMSAPlotter::DrawHistograms() {
 			histograms[i]->Draw("SAME");
 		}
 	}
+  fEmbeddedCanvas->GetCanvas()->BuildLegend();
 	// 마커 그리기
   TMarker* markers[4][2] = {
     {fDet1PulseStartMarker, fDet1PulseEndMarker},
@@ -200,6 +212,7 @@ void DAMSAPlotter::DrawHistograms() {
 	fDet1ThresholdLine->Draw();
 	fDet2ThresholdLine->Draw();
 
+
 	fEmbeddedCanvas->GetCanvas()->Update(); // 캔버스 업데이트
 
 	// 버튼 활성화/비활성화
@@ -214,7 +227,7 @@ void DAMSAPlotter::DrawHistograms() {
 		fPreviousEventButton->SetState(kButtonUp);
 	}
 
-}
+}// }}}
 
 DAMSAPlotter::~DAMSAPlotter() {
 	Cleanup();
@@ -401,7 +414,7 @@ bool DAMSAPlotter::FindPulseRange(TH1D* hist, float* start, float* end, float th
 }/*}}}*/
 
 std::pair<float, float> DAMSAPlotter::FindMeanAndVariance(TH1D* hist, int startBin, int endBin)
-{
+{// {{{
 	float sum = 0.0f;
 	float sumSquared = 0.0f;
 	int numBins = endBin - startBin + 1;
@@ -416,10 +429,13 @@ std::pair<float, float> DAMSAPlotter::FindMeanAndVariance(TH1D* hist, int startB
 	float variance = (sumSquared / numBins) - (mean * mean);
 
 	return std::make_pair(mean, variance);
-}
+}// }}}
 
 float DAMSAPlotter::FindPedestal(TH1D* hist, int windowSize)
-{
+{// {{{
+	// Pedestal finding algorithm
+	
+  /*
 	int numBins = 500;
 	float minVariance = std::numeric_limits<float>::max();
 	float pedestal = 0.0f;
@@ -436,12 +452,24 @@ float DAMSAPlotter::FindPedestal(TH1D* hist, int windowSize)
 	}
 
 	std::cout << hist->GetName() << " pedestal : " << pedestal << '\n';
+  */
+  const int nbin = 20;
+  float mean = 0.0f;
+  float sigma = 0.0f;
+  float bin_content;
+  for( int i = 1; i <= nbin; ++i ) {
+    bin_content = hist->GetBinContent(i);
+    mean += bin_content;
+    sigma += bin_content * bin_content;
+  }
+  mean /= nbin;
+  sigma = sqrt( sigma/nbin - (mean * mean) );
 
-	return pedestal - 2.5 * minVariance;
-}
+	return mean - 2.5 * sigma;
+}// }}}
 
 float DAMSAPlotter::FindCherenkovPedestal(TH1D* hist)
-{
+{// {{{
 	int endbin = 30;
 	float average = 0;
 	float stddev = 0;
@@ -463,6 +491,7 @@ float DAMSAPlotter::FindCherenkovPedestal(TH1D* hist)
 
 	return threshold;
 
-}
+}// }}}
+
 ClassImp(DAMSAPlotter)
 
