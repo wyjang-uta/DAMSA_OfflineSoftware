@@ -229,9 +229,12 @@ void DAMSAPlotter::DrawHistograms()
   // 히스토그램 스타일링
 	for (int i = 0; i < 4; ++i)
   {
-		histograms_KDE[i]->SetAxisRange(yMin, yMax, "Y");
-		histograms_KDE[i]->SetLineColor(i+1);
+    histograms_KDE[i]->SetAxisRange(yMin, yMax, "Y");
+    histograms_KDE[i]->SetLineColor(i+1);
     histograms_KDE[i]->SetLineStyle(2);
+    histograms_KDE[i]->SetLineWidth(2);
+    derivatives[i]->SetLineColor(i+1);
+    derivatives[i]->SetLineStyle(3);
   }
 
 	// 히스토그램 그리기

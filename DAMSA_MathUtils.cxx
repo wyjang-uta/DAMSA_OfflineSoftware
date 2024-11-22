@@ -217,3 +217,7 @@ TH1D* DAMSA_MathUtils::GetDerivative(TH1D* hist)
 
   return deriv;
 }// }}}
+
+int DAMSA_MathUtils::GetNumberOfZeroCrossings(TH1D* hist)
+{
+}
