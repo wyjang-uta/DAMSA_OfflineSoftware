@@ -151,7 +151,6 @@ float DAMSA_MathUtils::GetPedestal(TH1D* hist, float start_ns, float end_ns)
  // Pedestal finding algorithm
  //   Look for first 0 - 20 ns interval to get average ADC and standard deviation(sigma).
  //   Return average - 2.5 sigma
-  std::cout << "Processing GetPedestal() for " << hist->GetName() << std::endl;
   int start_bin = hist->GetBin(start_ns);
   int end_bin = hist->GetBin(end_ns);
   int nbin = end_bin - start_bin + 1;
@@ -163,11 +162,9 @@ float DAMSA_MathUtils::GetPedestal(TH1D* hist, float start_ns, float end_ns)
     bin_content = hist->GetBinContent(i);
     mean += bin_content;
     sigma += bin_content * bin_content;
-    std::cout << "Bin Content: " << bin_content << " / Mean: " << mean << " / sigma: " << sigma << std::endl;
   }
   mean /= nbin;
   sigma = sqrt( sigma/nbin - (mean * mean) );
-  std::cout << "Mean: " << mean << " / sigma: " << sigma << std::endl;
 
   return mean - 3.0 * sigma;
 }// }}}
