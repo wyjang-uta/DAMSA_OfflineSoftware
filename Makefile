@@ -25,5 +25,5 @@ $(TARGET): $(OBJS)
 
 # 클린 빌드
 clean:
-	rm -f $(TARGET) $(OBJS) DAMSAPlotter_Dict.*
+	rm -f $(TARGET) $(OBJS) DAMSAPlotter_Dict.* DAMSAPlotter_Dict_rdict.pcm
 
