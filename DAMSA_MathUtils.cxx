@@ -2,97 +2,102 @@
 #include "DAMSA_MathUtils.h"
 
 float DAMSA_MathUtils::GaussianKernel(float x, float xi, float bandwidth) {
-	float diff = x - xi;/*{{{*/
-	return exp( -0.5 * ( diff * diff ) / ( bandwidth * bandwidth ));
+  float diff = x - xi;/*{{{*/
+  return exp( -0.5 * ( diff * diff ) / ( bandwidth * bandwidth ));
 }/*}}}*/
 
 float DAMSA_MathUtils::GaussianKernelRegression(const std::vector<float>& x_data, const std::vector<float>& y_data, float x, float bandwidth) {
-	float numerator = 0.0f;/*{{{*/
-	float denominator = 0.0f;
+  float numerator = 0.0f;/*{{{*/
+  float denominator = 0.0f;
 
-	for( size_t i = 0; i < x_data.size(); ++i )
-	{
-		float weight = GaussianKernel(x, x_data[i], bandwidth);
-		numerator += weight * y_data[i];
-		denominator += weight;
-	}
+  for( size_t i = 0; i < x_data.size(); ++i )
+  {
+    float weight = GaussianKernel(x, x_data[i], bandwidth);
+    numerator += weight * y_data[i];
+    denominator += weight;
+  }
 
-	return numerator / denominator;
+  return numerator / denominator;
 }/*}}}*/
 
 TH1D* DAMSA_MathUtils::PerformKDE(TH1D* hist, int nSmoothBins, float bandwidth) {
-	// KDE를 위한 새로운 히스토그램 생성{{{
-	int nBins = hist->GetNbinsX();
-	if( nSmoothBins == 0 ) nSmoothBins = nBins;
-	float xMin = hist->GetXaxis()->GetXmin();
-	float xMax = hist->GetXaxis()->GetXmax();
+  // KDE를 위한 새로운 히스토그램 생성{{{
+  int nBins = hist->GetNbinsX();
+  if( nSmoothBins == 0 ) nSmoothBins = nBins;
+  float xMin = hist->GetXaxis()->GetXmin();
+  float xMax = hist->GetXaxis()->GetXmax();
 
-	TString kdeHistName = TString(hist->GetName()) + "_KDE";
-	TString kdeHistTitle = "(KDE) " + TString(hist->GetTitle());
-	TH1D* kdeHist = (TH1D*)hist->Clone(kdeHistName);
-	kdeHist->SetTitle(kdeHistTitle);
+  TString kdeHistName = TString(hist->GetName()) + "_KDE";
+  TString kdeHistTitle = "(KDE) " + TString(hist->GetTitle());
+  TH1D* kdeHist = (TH1D*)hist->Clone(kdeHistName);
+  kdeHist->SetTitle(kdeHistTitle);
 
-	// 히스토그램에서 샘플링
-	std::vector<float> xval;
-	std::vector<float> yval;
-	std::vector<float> esty;
-	float estimatedY;
-	for( int i = 1; i <= hist->GetNbinsX(); ++i ) {
-		xval.push_back(hist->GetBinCenter(i));
-		yval.push_back(hist->GetBinContent(i));
-	}
-	for( size_t i = 0; i < xval.size(); ++i ) {
-		estimatedY = GaussianKernelRegression(xval, yval, xval[i], bandwidth);
-		kdeHist->SetBinContent(i+1, estimatedY);
-		esty.push_back(estimatedY);
-	}
+  // 히스토그램에서 샘플링
+  std::vector<float> xval;
+  std::vector<float> yval;
+  std::vector<float> esty;
+  float estimatedY;
+  for( int i = 1; i <= hist->GetNbinsX(); ++i ) {
+    xval.push_back(hist->GetBinCenter(i));
+    yval.push_back(hist->GetBinContent(i));
+  }
+  for( size_t i = 0; i < xval.size(); ++i ) {
+    estimatedY = GaussianKernelRegression(xval, yval, xval[i], bandwidth);
+    kdeHist->SetBinContent(i+1, estimatedY);
+    esty.push_back(estimatedY);
+  }
 
-	return kdeHist;
+  return kdeHist;
 }// }}}
 
-bool DAMSA_MathUtils::GetPulseRange(TH1D* hist, float* start, float* end, float threshold)
+bool DAMSA_MathUtils::GetPulseRange(float threshold, float* start, float* end, TH1D* hist, float searchStart, float searchEnd)
 {/*{{{*/
-	bool inPulse = false;
-	bool found = false;
-	float x, y, y_next;
-	float pulseStart = 0.0f, pulseEnd = 0.0f;
-	float minimumPulseWidth = 5.0f;
-	int startBin, endBin;
-	float reference_area;
-	float pulse_area;
-	if( hist->GetMinimum() > threshold ){
-		*start = -1.0f;
-		*end = -1.0f;
-		return false;
-	}
+  bool inPulse = false;
+  bool found = false;
+  float x, y, y_next;
+  float pulseStart = 0.0f, pulseEnd = 0.0f;
+  float minimumPulseWidth = 5.0f;
+  int startBin, endBin;
+  float reference_area;
+  float pulse_area;
 
-	// Get pulse start
-	for( size_t i = 1; i <= hist->GetNbinsX(); ++i ) {
-		x = hist->GetBinCenter(i);
-		y = hist->GetBinContent(i);
-		y_next = hist->GetBinContent(i+5);
-		if( !inPulse && y < threshold ) {
-			// check the next 30 bins monotonically decrease
-			bool monotonicDecrease = true;
-			for( size_t j = i; j < i+20; j++){
-				float currentValue = hist->GetBinContent(j);
-				float nextValue = hist->GetBinContent(j+1);
-				if( currentValue <= nextValue )
-				{
-					monotonicDecrease = false;
-					break;
-				}
-			}
-			if( !monotonicDecrease )
-			{
-				inPulse = false;
-				continue;
-			}
-			inPulse = true;
-			pulseStart = x;
-		}
-	}
-	// Get pulse end
+  startBin = hist->FindBin(searchStart);
+  endBin = hist->FindBin(searchEnd);
+
+  if( hist->GetMinimum() > threshold ){
+    *start = -1.0f;
+    *end = -1.0f;
+    return false;
+  }
+
+  // Get pulse start
+  for( size_t i = startBin; i <= hist->GetNbinsX(); ++i ) {
+    x = hist->GetBinCenter(i);
+    y = hist->GetBinContent(i);
+    y_next = hist->GetBinContent(i+5);
+
+    if( !inPulse && y < threshold ) {
+      // Check if the data in the next 20 bins decreases monotonically
+      bool monotonicDecrease = true;
+      for( size_t j = i; j < i+20; j++){
+        float currentValue = hist->GetBinContent(j);
+        float nextValue = hist->GetBinContent(j+1);
+        if( currentValue <= nextValue )
+        {
+          monotonicDecrease = false;
+          break;
+        }
+      }
+      if( !monotonicDecrease )
+      {
+        inPulse = false;
+        continue;
+      }
+      inPulse = true;
+      pulseStart = x;
+    }
+  }
+  // Get pulse end
   if( inPulse )
   {
     for( size_t i = hist->GetMinimumBin(); i <= hist->GetNbinsX(); ++i ) {
@@ -111,41 +116,41 @@ bool DAMSA_MathUtils::GetPulseRange(TH1D* hist, float* start, float* end, float 
     }
   }
 
-	// when range could not found after scanned all data,
-	// pulseEnd is set to be the very last element of the data
-	if( pulseEnd == 0.0f ) {
-		pulseEnd = hist->GetXaxis()->GetXmax()-1;
-	}
+  // when range could not found after scanned all data,
+  // pulseEnd is set to be the very last element of the data
+  if( pulseEnd == 0.0f ) {
+    pulseEnd = hist->GetXaxis()->GetXmax()-1;
+  }
 
-	*start = pulseStart;
-	*end = pulseEnd;
+  *start = pulseStart;
+  *end = pulseEnd;
 
-	return found;
+  return found;
 }/*}}}*/
 
 std::pair<float, float> DAMSA_MathUtils::GetMeanAndVariance(TH1D* hist, int startBin, int endBin)
 {// {{{
-	float sum = 0.0f;
-	float sumSquared = 0.0f;
-	int numBins = endBin - startBin + 1;
+  float sum = 0.0f;
+  float sumSquared = 0.0f;
+  int numBins = endBin - startBin + 1;
 
-	for (int bin = startBin; bin <= endBin; ++bin) {
-		float value = hist->GetBinContent(bin);
-		sum += value;
-		sumSquared += value * value;
-	}
+  for (int bin = startBin; bin <= endBin; ++bin) {
+    float value = hist->GetBinContent(bin);
+    sum += value;
+    sumSquared += value * value;
+  }
 
-	float mean = sum / numBins;
-	float variance = (sumSquared / numBins) - (mean * mean);
+  float mean = sum / numBins;
+  float variance = (sumSquared / numBins) - (mean * mean);
 
-	return std::make_pair(mean, variance);
+  return std::make_pair(mean, variance);
 }// }}}
 
 float DAMSA_MathUtils::GetPedestal(TH1D* hist, float start_ns, float end_ns)
 {// {{{
-	// Pedestal finding algorithm
-  //   Look for first 0 - 20 ns interval to get average ADC and standard deviation(sigma).
-  //   Return average - 2.5 sigma
+ // Pedestal finding algorithm
+ //   Look for first 0 - 20 ns interval to get average ADC and standard deviation(sigma).
+ //   Return average - 2.5 sigma
   std::cout << "Processing GetPedestal() for " << hist->GetName() << std::endl;
   int start_bin = hist->GetBin(start_ns);
   int end_bin = hist->GetBin(end_ns);
@@ -164,37 +169,37 @@ float DAMSA_MathUtils::GetPedestal(TH1D* hist, float start_ns, float end_ns)
   sigma = sqrt( sigma/nbin - (mean * mean) );
   std::cout << "Mean: " << mean << " / sigma: " << sigma << std::endl;
 
-	return mean - 3.0 * sigma;
+  return mean - 3.0 * sigma;
 }// }}}
 
 float DAMSA_MathUtils::GetCherenkovPedestal(TH1D* hist)
 {// {{{
-	int endbin = 30;
-	float average = 0;
-	float stddev = 0;
-	float diff = 0;
-	float threshold;
-	int nbins = hist->GetNbinsX();
-	for(int i = 1; i <= endbin; ++i){
-		average += hist->GetBinContent(i);
-	}
-	average /= endbin;
-	for(int i = 1; i <= endbin; ++i){
-		diff = (average - hist->GetBinContent(i));
-		stddev += diff*diff;
-	}
-	stddev /= endbin;
-	stddev = sqrt(stddev);
+  int endbin = 30;
+  float average = 0;
+  float stddev = 0;
+  float diff = 0;
+  float threshold;
+  int nbins = hist->GetNbinsX();
+  for(int i = 1; i <= endbin; ++i){
+    average += hist->GetBinContent(i);
+  }
+  average /= endbin;
+  for(int i = 1; i <= endbin; ++i){
+    diff = (average - hist->GetBinContent(i));
+    stddev += diff*diff;
+  }
+  stddev /= endbin;
+  stddev = sqrt(stddev);
 
-	threshold = average - 5.0 * stddev;
+  threshold = average - 5.0 * stddev;
 
-	return threshold;
+  return threshold;
 
 }// }}}
 
 TH1D* DAMSA_MathUtils::GetDerivative(TH1D* hist)
 {// {{{
-  // return a derivative of a given histogram
+ // return a derivative of a given histogram
   TH1D* deriv = (TH1D*)hist->Clone(TString(hist->GetName())+"_prime");
   float data[2] = {0.0f, 0.0f};
   float rate;
@@ -218,6 +223,7 @@ TH1D* DAMSA_MathUtils::GetDerivative(TH1D* hist)
   return deriv;
 }// }}}
 
-int DAMSA_MathUtils::GetNumberOfZeroCrossings(TH1D* hist)
+int DAMSA_MathUtils::GetNumberOfZeroCrossing(TH1D* hist)
 {
+  return 0;
 }
