@@ -10,7 +10,7 @@
 #include <TGaxis.h>
 
 #include "DAMSAPlotter.h"
-#include "DAMSA_MathUtils.h"
+#include "DAMSAMathUtils.h"
 
 DAMSAPlotter::DAMSAPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFile) : TGMainFrame(p, w, h), fEventNumber(1), fHistFile(histFile)
 {// {{{

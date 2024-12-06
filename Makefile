@@ -7,14 +7,14 @@ LDFLAGS := $(shell root-config --glibs)
 TARGET := DAMSAPlotterApp
 
 # 소스 및 객체 파일
-SRCS := main.cxx DAMSAPlotter.cxx DAMSA_MathUtils.cxx DAMSAPlotter_Dict.cxx
+SRCS := main.cxx DAMSAPlotter.cxx DAMSAMathUtils.cxx DAMSAPlotter_Dict.cxx
 OBJS := $(SRCS:.cxx=.o)
 
 # 빌드 규칙
 all: $(TARGET)
 
 # Dictionary 파일 생성 규칙
-DAMSAPlotter_Dict.cxx: DAMSAPlotter.h DAMSA_MathUtils.h LinkDef.h
+DAMSAPlotter_Dict.cxx: DAMSAPlotter.h DAMSAMathUtils.h LinkDef.h
 	rootcling -f $@ -c $^
 
 $(TARGET): $(OBJS)
