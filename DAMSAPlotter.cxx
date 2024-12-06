@@ -125,6 +125,10 @@ void DAMSAPlotter::LoadHistograms()
     fDet1PulseEndMarker->SetY(fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseEnd)));
     fDet1PulseEndMarker->SetMarkerStyle(20);
   }
+  std::cout << "Det1 pulse found?: " << fDet1PulseFound << std::endl;
+  std::cout << "Det1 pulse start position: " << pulseStart << std::endl;
+  std::cout << "Det1 pulse end position: " << pulseEnd << std::endl;
+  std::cout << "Det1 PulseEnd_y: " << fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseEnd)) << std::endl;
 
   // Determine the pulse range of detector 1
 	pedestal = DAMSA_MathUtils::GetPedestal(fDet2Histogram, 1, 10);
@@ -144,8 +148,10 @@ void DAMSAPlotter::LoadHistograms()
     fDet2PulseEndMarker->SetMarkerStyle(20);
   }
   std::cout << "Det2 pulse found?: " << fDet2PulseFound << std::endl;
+  std::cout << "Det2 pulse start position: " << pulseStart << std::endl;
   std::cout << "Det2 pulse end position: " << pulseEnd << std::endl;
   std::cout << "Det2 PulseEnd_y: " << fDet2HistogramKDE->GetBinContent(fDet2HistogramKDE->FindBin(pulseEnd)) << std::endl;
+
   pedestal = DAMSA_MathUtils::GetPedestal(fChe1Histogram, 1, 10);
 	//fChe1PulseFound = GetPulseRange(fChe1HistogramKDE, &pulseStart, &pulseEnd, GetCherenkovPedestal(fChe1Histogram));
 	fChe1PulseStartMarker->SetX(pulseStart);
