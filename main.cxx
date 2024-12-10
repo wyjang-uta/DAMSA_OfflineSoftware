@@ -1,37 +1,55 @@
 #include <iostream>
+#include <typeinfo>
+
+#include <boost/program_options.hpp>
 
 #include "TApplication.h"
 #include "TFile.h"
 
 #include "DMSPlotter.h"
+#include "DMSDataProcess.h"
+
+namespace bpo = boost::program_options;
 
 int main(int argc, char *argv[]) {
-  TApplication app("DMSPlotterApp", &argc, argv);
+  bpo::options_description desc("Allowed options");
+  desc.add_options()
+    ("help,h", "Show help message")
+    ("gui,p", bpo::value<std::string>(), "Run in GUI mode with an input file")
+    ("batch,b", bpo::value<std::vector<std::string>>()->multitoken(), "Run in Batch mode with an input and an output file");
+  bpo::variables_map vm;
+  bpo::store(bpo::parse_command_line(argc, argv, desc), vm);
+  bpo::notify(vm);
 
-  /*
-  std::cout << "argc: " << argc << std::endl;
-  std::cout << "app.Argc(): " << app.Argc() << std::endl;
-  for(int i = 0; i < argc; ++i) std::cout << "argv[" <<i<< "]: " << argv[i] << '\n';
-  for(int i = 0; i < app.Argc(); ++i) std::cout << "app.Argv()[" <<i<< "]: " << app.Argv()[i] << '\n';
-  */
-
-  if (app.Argc() < 2) {
-    std::cerr << "Usage: " << app.Argv()[0] << " <path/to/your/file.root>\n";
-    return 1;
+  if (vm.count("gui")) {
+    std::cout << "GUI mode with file: " << vm["gui"].as<std::string>() << "\n";
+    TApplication app("DMSPlotterApp", &argc, argv);
+    TFile* file = TFile::Open(vm["gui"].as<std::string>().data());
+    if( !file || file->IsZombie() ) {
+      std::cerr << "Error: Could not open file, or the IsZombie() returned false.\n";
+      return 1;
+    }
+    DMSPlotter* plotter = new DMSPlotter(gClient->GetRoot(), 800, 600, file);
+    app.Run();
+    delete plotter;
+  } else if (vm.count("batch")) {
+    auto files = vm["batch"].as<std::vector<std::string>>();
+    if (files.size() == 2) {
+      std::cout << "Batch mode with input: " << files[0]
+        << " and output: " << files[1] << "\n";
+      char inputFileName[128];
+      char outputFileName[128];
+      strcpy(inputFileName, files[0].data());
+      strcpy(outputFileName, files[1].data());
+      DMSDataProcess* dataProcess = new DMSDataProcess(inputFileName, outputFileName);
+      dataProcess->ProcessFile();
+    } else {
+      std::cerr << "Batch mode requires two files: input and output.\n";
+    }
+  } else {
+    std::cerr << "Invalid arguments. Use --help for usage.\n";
   }
 
-  TFile* file = TFile::Open(app.Argv()[1]);
-
-  if( !file || file->IsZombie() ) {
-    std::cerr << "Error: Could not open file, or the IsZombie() returned false.\n";
-    return 1;
-  }
-
-
-  DMSPlotter* plotter = new DMSPlotter(gClient->GetRoot(), 1024, 768, file);
-  app.Run();
-
-  delete plotter;
   return 0;
 }
 
