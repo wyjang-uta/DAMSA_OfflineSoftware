@@ -1,6 +1,6 @@
 # 컴파일러 설정
 CXX := g++
-CXXFLAGS := $(shell root-config --cflags)
+CXXFLAGS := -g $(shell root-config --cflags)
 LDFLAGS := $(shell root-config --glibs) -lboost_program_options
 
 # 실행 파일 이름

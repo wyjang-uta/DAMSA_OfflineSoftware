@@ -26,12 +26,13 @@ DMSDataProcess::~DMSDataProcess() {
 
 void DMSDataProcess::ProcessFile()
 {
+  fOutputFile->cd();
   for( UInt_t i = 1; i <= fMaxEventNumber; ++i )
   {
-    fDet1Histogram = (TH1D*)fInputFile->Get(Form("det1_evt_%d", fEventNumber));
-    fDet2Histogram = (TH1D*)fInputFile->Get(Form("det2_evt_%d", fEventNumber));
-    fChe1Histogram = (TH1D*)fInputFile->Get(Form("che1_evt_%d", fEventNumber));
-    fChe2Histogram = (TH1D*)fInputFile->Get(Form("che2_evt_%d", fEventNumber));
+    fDet1Histogram = (TH1D*)fInputFile->Get(Form("det1_evt_%d", i));
+    fDet2Histogram = (TH1D*)fInputFile->Get(Form("det2_evt_%d", i));
+    fChe1Histogram = (TH1D*)fInputFile->Get(Form("che1_evt_%d", i));
+    fChe2Histogram = (TH1D*)fInputFile->Get(Form("che2_evt_%d", i));
     fDet1HistogramKDE = DMS_MathUtils::PerformKDE(fDet1Histogram);
     fDet2HistogramKDE = DMS_MathUtils::PerformKDE(fDet2Histogram);
     fChe1HistogramKDE = DMS_MathUtils::PerformKDE(fChe1Histogram);
@@ -47,6 +48,7 @@ void DMSDataProcess::ProcessFile()
     // Determine the pulse range of detector 1
     pedestal = DMS_MathUtils::GetPedestal(fDet1Histogram, 50, 70);
     fDet1PulseFound = DMS_MathUtils::GetPulseRange(pedestal, &pulseStart, &pulseEnd, fDet1HistogramKDE);
+    //std::cout << "Event: " << i << ", Detector 1 - Pulse Start: " << pulseStart << ", Pulse End: " << pulseEnd << std::endl;
 
     // Determine the pulse range of detector 1
     pedestal = DMS_MathUtils::GetPedestal(fDet2Histogram, 1, 10);
@@ -57,4 +59,6 @@ void DMSDataProcess::ProcessFile()
     pedestal = DMS_MathUtils::GetPedestal(fChe1Histogram, 1, 10);
     //fChe2PulseFound = GetPulseRange(fChe2HistogramKDE, &pulseStart, &pulseEnd, GetCherenkovPedestal(fChe2Histogram));
   }
+  fOutputFile->Close();
+  fInputFile->Close();
 }
