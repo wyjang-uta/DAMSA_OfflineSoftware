@@ -113,11 +113,13 @@ void DMSDataProcess::ProcessFile()
     fDet1PSD = fDet1PulseIntegralTail / fDet1PulseIntegralTotal;
     fDet2PSD = fDet2PulseIntegralTail / fDet2PulseIntegralTotal;
 
+    /*
     std::cout << "\n(Detector1) Total Pulse Integral: " << fDet1PulseIntegralTotal << std::endl;
     std::cout << "\n(Detector2) Total Pulse Integral: " << fDet2PulseIntegralTotal << std::endl;
 
     std::cout << "(Detector1) Pulse start (ns): " << fDet1PulseStart << ", Pulse tail (ns): " << fDet1PulseTail << ", Pulse end (ns): " << fDet1PulseEnd << std::endl;
     std::cout << "(Detector2) Pulse start (ns): " << fDet2PulseStart << ", Pulse tail (ns): " << fDet2PulseTail << ", Pulse end (ns): " << fDet2PulseEnd << std::endl;
+    */
 
     // Pulse check for Cherenkov detectors
     fChe1MeanPedestal = DMS_MathUtils::GetPedestal(fChe1Histogram, 1, 10);
