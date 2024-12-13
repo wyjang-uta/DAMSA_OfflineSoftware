@@ -35,8 +35,10 @@ int main(int argc, char *argv[]) {
   } else if (vm.count("batch")) {
     auto files = vm["batch"].as<std::vector<std::string>>();
     if (files.size() == 2) {
-      std::cout << "Batch mode with input: " << files[0]
-        << " and output: " << files[1] << "\n";
+      std::cout << "DAMSA Offline Software v0.1" << std::endl;
+      std::cout << "//Batch mode//" << std::endl;
+      std::cout << "Input file: " << files[0] << std::endl;
+      std::cout << "Output file: " << files[1] << std::endl;
       char inputFileName[128];
       char outputFileName[128];
       strcpy(inputFileName, files[0].data());
