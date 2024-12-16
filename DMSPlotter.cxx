@@ -129,6 +129,9 @@ void DMSPlotter::LoadHistograms()
   std::cout << "Det1 pulse start position: " << pulseStart << std::endl;
   std::cout << "Det1 pulse end position: " << pulseEnd << std::endl;
   std::cout << "Det1 PulseEnd_y: " << fDet1HistogramKDE->GetBinContent(fDet1HistogramKDE->FindBin(pulseEnd)) << std::endl;
+  int pulseStartBin = fDet1Histogram->FindBin(pulseStart);
+  int pulseEndBin = fDet1Histogram->FindBin(pulseEnd);
+  std::cout << "Det1 Integral Total: " << (pulseEndBin - pulseStartBin + 1) * pedestal - fDet1Histogram->Integral(pulseStart, pulseEnd) << std::endl;
 
   // Determine the pulse range of detector 1
 	pedestal = DMS_MathUtils::GetPedestal(fDet2Histogram, 1, 10);
@@ -151,6 +154,9 @@ void DMSPlotter::LoadHistograms()
   std::cout << "Det2 pulse start position: " << pulseStart << std::endl;
   std::cout << "Det2 pulse end position: " << pulseEnd << std::endl;
   std::cout << "Det2 PulseEnd_y: " << fDet2HistogramKDE->GetBinContent(fDet2HistogramKDE->FindBin(pulseEnd)) << std::endl;
+  pulseStartBin = fDet2Histogram->FindBin(pulseStart);
+  pulseEndBin = fDet2Histogram->FindBin(pulseEnd);
+  std::cout << "Det2 Integral Total: " << (pulseEndBin - pulseStartBin + 1) * pedestal - fDet2Histogram->Integral(pulseStart, pulseEnd) << std::endl;
 
   pedestal = DMS_MathUtils::GetPedestal(fChe1Histogram, 1, 10);
 	//fChe1PulseFound = GetPulseRange(fChe1HistogramKDE, &pulseStart, &pulseEnd, GetCherenkovPedestal(fChe1Histogram));
