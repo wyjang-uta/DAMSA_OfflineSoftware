@@ -176,7 +176,7 @@ void DMSDataProcess::CheckCherenkovSignals()
 }// }}}
 
 void DMSDataProcess::FindPulsePeak()
-{
+{// {{{
   Float_t det1_value;
   Float_t det1_minimum = fDet1MeanPedestal;
   Float_t che2_value;
@@ -203,10 +203,10 @@ void DMSDataProcess::FindPulsePeak()
   fDet2PulsePeak = che2_minimum;
   fDet1PulsePeakTime = det1_minimum_time;
   fDet2PulsePeakTime = che2_minimum_time;
-}
+}// }}}
 
 void DMSDataProcess::FindPulseTail()
-{
+{// {{{
   Int_t det1_peak_bin = fDet1HistogramKDE->FindBin(fDet1PulsePeakTime);
   Int_t det2_peak_bin = fDet2HistogramKDE->FindBin(fDet2PulsePeakTime);
   Float_t det1_value;
@@ -240,5 +240,5 @@ void DMSDataProcess::FindPulseTail()
       break;
     }
   }
-}
+}// }}}
 
