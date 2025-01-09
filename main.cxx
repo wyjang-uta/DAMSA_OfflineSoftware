@@ -11,7 +11,8 @@
 
 namespace bpo = boost::program_options;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   bpo::options_description desc("Allowed options");
   desc.add_options()
     ("help,h", "Show help message")
@@ -21,7 +22,8 @@ int main(int argc, char *argv[]) {
   bpo::store(bpo::parse_command_line(argc, argv, desc), vm);
   bpo::notify(vm);
 
-  if (vm.count("gui")) {
+  if (vm.count("gui"))
+  {
     std::cout << "GUI mode with file: " << vm["gui"].as<std::string>() << "\n";
     TApplication app("DMSPlotterApp", &argc, argv);
     TFile* file = TFile::Open(vm["gui"].as<std::string>().data());
@@ -32,9 +34,12 @@ int main(int argc, char *argv[]) {
     DMSPlotter* plotter = new DMSPlotter(gClient->GetRoot(), 800, 600, file);
     app.Run();
     delete plotter;
-  } else if (vm.count("batch")) {
+  }
+  else if (vm.count("batch"))
+  {
     auto files = vm["batch"].as<std::vector<std::string>>();
-    if (files.size() == 2) {
+    if (files.size() == 2)
+    {
       std::cout << "DAMSA Offline Software v0.1" << std::endl;
       std::cout << "//Batch mode//" << std::endl;
       std::cout << "Input file: " << files[0] << std::endl;
@@ -45,10 +50,14 @@ int main(int argc, char *argv[]) {
       strcpy(outputFileName, files[1].data());
       DMSDataProcess* dataProcess = new DMSDataProcess(inputFileName, outputFileName);
       dataProcess->ProcessFile();
-    } else {
+    }
+    else
+    {
       std::cerr << "Batch mode requires two files: input and output.\n";
     }
-  } else {
+  }
+  else
+  {
     std::cerr << "Invalid arguments. Use --help for usage.\n";
   }
 
