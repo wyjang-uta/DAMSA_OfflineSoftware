@@ -75,10 +75,10 @@ void DMSDataProcess::ProcessFile()
       symbolIndex = ( symbolIndex + 1 ) % 4;
     }
 
-    fDet1Histogram = (TH1D*)fInputFile->Get(Form("det1_evt_%d", i+1));
-    fDet2Histogram = (TH1D*)fInputFile->Get(Form("det2_evt_%d", i+1));
-    fChe1Histogram = (TH1D*)fInputFile->Get(Form("che1_evt_%d", i+1));
-    fChe2Histogram = (TH1D*)fInputFile->Get(Form("che2_evt_%d", i+1));
+    fDet1Histogram = (TH1D*)fInputFile->Get(Form("det1_evt_%d", (Int_t)i+1));
+    fDet2Histogram = (TH1D*)fInputFile->Get(Form("det2_evt_%d", (Int_t)i+1));
+    fChe1Histogram = (TH1D*)fInputFile->Get(Form("che1_evt_%d", (Int_t)i+1));
+    fChe2Histogram = (TH1D*)fInputFile->Get(Form("che2_evt_%d", (Int_t)i+1));
     fDet1HistogramKDE = DMS_MathUtils::PerformKDE(fDet1Histogram);
     fDet2HistogramKDE = DMS_MathUtils::PerformKDE(fDet2Histogram);
     fChe1HistogramKDE = DMS_MathUtils::PerformKDE(fChe1Histogram);
