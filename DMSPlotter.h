@@ -1,5 +1,6 @@
 #ifndef DMSPLOTTER_H
 #define DMSPLOTTER_H
+#define NDIV 1024
 
 #include <utility>
 #include <vector>
@@ -18,26 +19,33 @@
 class DMSPlotter : public TGMainFrame {
   public:
     DMSPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFile);
+    DMSPlotter(const TGWindow *p, UInt_t w, UInt_t h, const char* inputDirectoryName);
     virtual ~DMSPlotter();
     void OnNextEventButtonClick();
     void OnPreviousEventButtonClick();
     void OnGoToEventButtonClick();
     void OnExitButtonClick();
+    ULong64_t CountLinesInText();
     void LoadHistograms();
+    void LoadHistograms(char* inputFileName);
     void DrawHistograms();
     void HandleResize();
 
   private:
+    // GUI related member variables
+    TGHorizontalFrame*   fHistFrame;
     TRootEmbeddedCanvas* fEmbeddedCanvas;
-    TGHorizontalFrame*   fButtonFrame;
     UInt_t		           fButtonFrameHeight;
+    TGHorizontalFrame*   fButtonFrame;
     TGTextButton*        fNextEventButton;
     TGTextButton*        fPreviousEventButton;
     TGTextEntry*         fEventEntry;
     TGTextButton*        fGoToEventButton;
-    TGHorizontalFrame*   fHistFrame;
     TGaxis*              fRightAxis;
-    TFile*		           fHistFile;
+
+    // Data related member variables
+    TFile*		           fHistFile;             // when program reads data from histogram
+    char*              fWorkDirectoryPath;    // when program reads data directly from text file
     UInt_t		           fEventNumber;
     UInt_t		           fMaxEventNumber;
     TH1D*                fDet1Histogram;
@@ -70,6 +78,7 @@ class DMSPlotter : public TGMainFrame {
     TLine*               fChe2ThresholdLine;
     UInt_t               fNumberOfZeroCrossing;
     UInt_t               fNumberOfPulse;
+    float                fValues[NDIV];
 
     ClassDef(DMSPlotter, 0)
 };

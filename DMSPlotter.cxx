@@ -1,6 +1,11 @@
 #include <iostream>
+#include <fstream>
+#include <filesystem>
 #include <utility>
 #include <vector>
+#include <cstdlib>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <TApplication.h>
 #include <TCanvas.h>
@@ -89,8 +94,150 @@ DMSPlotter::DMSPlotter(const TGWindow *p, UInt_t w, UInt_t h, TFile* histFile) :
 	MapWindow();       // 메인 프레임을 맵핑하여 표시
 }// }}}
 
+DMSPlotter::DMSPlotter(
+    const TGWindow *p,
+    UInt_t w,
+    UInt_t h,
+    const char* inputDirectoryName) :
+  TGMainFrame(p, w, h),
+  fEventNumber(1)
+{
+  // Initialize histograms
+  fDet1Histogram = new TH1D("h_det1", "Detector 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fDet2Histogram = new TH1D("h_det2", "Detector 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fChe1Histogram = new TH1D("h_che1", "Cherenkov 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fChe2Histogram = new TH1D("h_che2", "Cherenkov 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
+
+  // Set work directory
+  fWorkDirectoryPath = new char[strlen(inputDirectoryName)+1];
+  strcpy(fWorkDirectoryPath,inputDirectoryName);
+  namespace fs = std::filesystem;
+  // Check whether the directory contains necessary files in it.
+  std::vector<std::string> filesToCheck = {
+    std::string(fWorkDirectoryPath)+"wave_0.txt",
+    std::string(fWorkDirectoryPath)+"wave_1.txt",
+    std::string(fWorkDirectoryPath)+"wave_6.txt",
+    std::string(fWorkDirectoryPath)+"wave_7.txt"};
+  std::cerr << "Check path ( " << fWorkDirectoryPath << " ).\n";
+  if( !fs::exists(fWorkDirectoryPath) )
+  {
+    std::cerr << "Error: Path ( " << fWorkDirectoryPath << " )does not exist.\n";
+    exit(EXIT_FAILURE);
+  }
+  for( const auto& file : filesToCheck )
+  {
+    fs::path filePath = fs::path(fWorkDirectoryPath) / file;
+    if( !fs::exists(filePath) )
+    {
+      std::cerr << "Error: File not found ( " << filePath << " ).\n";
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // Add a frame to display the histogram.
+	fButtonFrameHeight = 10;
+	fHistFrame = new TGHorizontalFrame(this, w-5, h-20);
+	fEmbeddedCanvas = new TRootEmbeddedCanvas("EmbeddedCanvas", fHistFrame, w - 20, h - fButtonFrameHeight - 40);
+	fHistFrame->AddFrame(fEmbeddedCanvas, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
+	AddFrame(fHistFrame, new TGLayoutHints(kLHintsExpandX | kLHintsTop, 10, 10, 10, 5));
+  fMaxEventNumber = CountLinesInText()/1024;
+  std::cout << "Total Event Number: " << fMaxEventNumber << std::endl;
+
+  // Call HandleResize() function whenever resize event happens.
+  this->Connect("ProcessedEvent(Event_t*)", "DMSPlotter", this, "HandleResize()");
+
+  // Add a button frame in the main frame to put buttons horizontally
+  fButtonFrame = new TGHorizontalFrame(this, w-5, 10);
+
+  // Add 'Previous Event' button
+  fPreviousEventButton = new TGTextButton(fButtonFrame, "Previous Event");
+  fPreviousEventButton->Connect("Clicked()", "DMSPlotter", this, "OnPreviousEventButtonClick()");
+  fButtonFrame->AddFrame(fPreviousEventButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
+
+  // Add 'Next Event' button
+  fNextEventButton = new TGTextButton(fButtonFrame, "Next Event");
+  fNextEventButton->Connect("Clicked()", "DMSPlotter", this, "OnNextEventButtonClick()");
+  fButtonFrame->AddFrame(fNextEventButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
+
+  // Add Event textbox entry
+  fEventEntry = new TGTextEntry(fButtonFrame, new TGTextBuffer(10));
+  fButtonFrame->AddFrame(fEventEntry, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
+
+  // Add 'Goto Event' button
+  fGoToEventButton = new TGTextButton(fButtonFrame, "Go");
+  fGoToEventButton->Connect("Clicked()", "DMSPlotter", this, "OnGoToEventButtonClick()");
+  fButtonFrame->AddFrame(fGoToEventButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
+
+  // Add 'Exit' button
+  TGTextButton* exitButton = new TGTextButton(fButtonFrame, "Exit");
+  exitButton->Connect("Clicked()", "DMSPlotter", this, "OnExitButtonClick()");
+  fButtonFrame->AddFrame(exitButton, new TGLayoutHints(kLHintsCenterX | kLHintsTop, 10, 10, 10, 5));
+
+  // Add the button frame into the main frame
+	AddFrame(fButtonFrame, new TGLayoutHints(kLHintsCenterX | kLHintsCenterY, 10, 10, 10, 10));
+
+  // Initialize data member variables
+  fDet1PulseFound       = false;
+  fDet2PulseFound       = false;
+  fChe1PulseFound       = false;
+  fChe2PulseFound       = false;
+	fDet1PulseStartMarker = nullptr;
+	fDet2PulseStartMarker = nullptr;
+	fChe1PulseStartMarker = nullptr;
+	fChe2PulseStartMarker = nullptr;
+	fDet1PulseEndMarker   = nullptr;
+	fDet2PulseEndMarker   = nullptr;
+	fChe1PulseEndMarker   = nullptr;
+	fChe2PulseEndMarker   = nullptr;
+
+  // Load histograms
+  LoadHistograms(fWorkDirectoryPath);
+  DrawHistograms();
+
+  SetWindowName("DMSPlotter ROOT GUI");
+
+	// 초기 크기 설정 (버튼이 표시될 수 있도록)
+	Resize(w+1,h+1);  // this is a trick to resize correctly.
+	Resize(w,h);  // 너비 200, 높이 100으로 설정, here the +1 is a magic number. 
+	MapSubwindows();   // 모든 서브 윈도우를 맵핑
+	MapWindow();       // 메인 프레임을 맵핑하여 표시
+}
+
+ULong64_t DMSPlotter::CountLinesInText()
+{
+  std::string fileToCheck(fWorkDirectoryPath);
+  fileToCheck += "wave_1.txt";
+  int fd = open(fileToCheck.c_str(), O_RDONLY);
+  if (fd == -1) {
+    perror("Error opening file");
+    return -1;
+  }
+
+  char buffer[4096]; // 블록 크기
+  ssize_t bytesRead;
+  long lineCount = 0;
+
+  while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
+    for (ssize_t i = 0; i < bytesRead; ++i) {
+      if (buffer[i] == '\n') {
+        ++lineCount;
+      }
+    }
+  }
+
+  if (bytesRead == -1) {
+    perror("Error reading file");
+    close(fd);
+    return -1;
+  }
+
+  close(fd);
+  return lineCount;
+}
+
 void DMSPlotter::LoadHistograms()
 {// {{{
+  std::cout << "Test text!" << std::endl;
 	fDet1Histogram = (TH1D*)fHistFile->Get(Form("det1_evt_%d", fEventNumber));
 	fDet2Histogram = (TH1D*)fHistFile->Get(Form("det2_evt_%d", fEventNumber));
 	fChe1Histogram = (TH1D*)fHistFile->Get(Form("che1_evt_%d", fEventNumber));
@@ -176,6 +323,63 @@ void DMSPlotter::LoadHistograms()
 	fChe2PulseEndMarker->SetMarkerStyle(20);
 }// }}}
 
+void DMSPlotter::LoadHistograms(char* inputDirectoryName)
+{
+  std::vector<std::string> filePaths = {
+    std::string(inputDirectoryName) + "wave_0.txt",   // detector 1
+    std::string(inputDirectoryName) + "wave_1.txt",   // detector 2
+    std::string(inputDirectoryName) + "wave_6.txt",   // cherenkov inner
+    std::string(inputDirectoryName) + "wave_7.txt"    // cherenkov outer
+  };
+
+  fDet1Histogram->Reset();
+  fDet2Histogram->Reset();
+  fChe1Histogram->Reset();
+  fChe2Histogram->Reset();
+
+  std::vector<TH1D*> histograms = {
+    fDet1Histogram,
+    fDet2Histogram,
+    fChe1Histogram,
+    fChe2Histogram
+  };
+
+  std::ifstream in;
+  // Move the file pointer according to the fEventNumber value.
+  const size_t float_size = sizeof(float);
+  unsigned long currentLine = fEventNumber * 1024;
+  unsigned long targetLine = ( fEventNumber + 1 ) * 1024;
+
+  int lineCount = 0;
+  for( int i = 0 ; i < 4; i++ )
+  {
+    std::cout << "Attempt to open file: " << filePaths.at(i) << std::endl;
+    in.open(filePaths.at(i).c_str());
+    if( !in.is_open() )
+    {
+      std::cerr << "Error: Failed to open file: " << filePaths.at(i) << "!\n";
+      exit(EXIT_FAILURE);
+    }
+    // Move the file pointer
+    in.seekg((targetLine - 1) * float_size, std::ios::beg);
+    // read the file
+    while(in >> fValues[lineCount++])
+    {
+      histograms.at(i)->SetBinContent(lineCount, fValues[lineCount-1]);
+      if( lineCount == 1024 ) break;
+    }
+
+
+    std::cout << "File " << filePaths.at(i) << " has been successfully filled, the histogram " << histograms.at(i)->GetName() << " has " << histograms.at(i)->GetEntries() << " entries." << std::endl;
+    in.close();
+    lineCount = 0;
+  }
+  fDet1Histogram->Print();
+  fDet2Histogram->Print();
+  fChe1Histogram->Print();
+  fChe2Histogram->Print();
+}
+
 void DMSPlotter::DrawHistograms()
 {// {{{
 	fEmbeddedCanvas->GetCanvas()->cd();  // 캔버스 선택
@@ -188,6 +392,7 @@ void DMSPlotter::DrawHistograms()
 		fChe2Histogram
 	};
 
+  /*
   TH1D* histograms_KDE[4] = {
     fDet1HistogramKDE,
     fDet2HistogramKDE,
@@ -201,16 +406,19 @@ void DMSPlotter::DrawHistograms()
     fChe1HistogramKDE_prime,
     fChe2HistogramKDE_prime
   };
+  */
 
   // 히스토그램 시각화 속성 부여
   fDet1Histogram->SetTitle("Detector 1");
   fDet2Histogram->SetTitle("Detector 2");
   fChe1Histogram->SetTitle("Cherenkov 1");
   fChe2Histogram->SetTitle("Cherenkov 2");
+  /*
   fDet1HistogramKDE->SetTitle("Detector 1 (KDE)");
   fDet2HistogramKDE->SetTitle("Detector 2 (KDE)");
   fChe1HistogramKDE->SetTitle("Cherenkov 1 (KDE)");
   fChe2HistogramKDE->SetTitle("Cherenkov 2 (KDE)");
+  */
 
 
 	// y축 범위 계산
@@ -226,6 +434,7 @@ void DMSPlotter::DrawHistograms()
 	float yMax = maxY * 1.1; // 최대값보다 10% 높은 값
 
   // 미분그래프 스케일링
+  /*
   double oldMin = -32, oldMax = 32;  // 그룹2의 y축 범위
   yMin = 0; yMax = 4096;     // 그룹1의 y축 범위
   for (int i = 1; i <= fDet1HistogramKDE_prime->GetNbinsX(); i++) {
@@ -242,8 +451,10 @@ void DMSPlotter::DrawHistograms()
     scaledValue = yMin + (oldValue - oldMin) * (yMax - yMin) / (oldMax - oldMin);
     fChe2HistogramKDE_prime->SetBinContent(i, scaledValue);
   }
+  */
 
   // 히스토그램 스타일링
+  /*
 	for (int i = 0; i < 4; ++i)
   {
     histograms_KDE[i]->SetAxisRange(yMin, yMax, "Y");
@@ -253,33 +464,37 @@ void DMSPlotter::DrawHistograms()
     derivatives[i]->SetLineColor(i+1);
     derivatives[i]->SetLineStyle(3);
   }
+  */
 
 	// 히스토그램 그리기
 	for (int i = 0; i < 4; ++i) {
-		histograms[i]->SetAxisRange(yMin, yMax, "Y");
+	//	histograms[i]->SetAxisRange(yMin, yMax, "Y");
 		histograms[i]->SetLineColor(i+1);
 
 		if (i == 0) {
 			histograms[i]->Draw();
-      histograms_KDE[i]->Draw("same");
-      derivatives[i]->Draw("same");
+      //histograms_KDE[i]->Draw("same");
+      //derivatives[i]->Draw("same");
 		} else {
 			histograms[i]->Draw("SAME");
-      histograms_KDE[i]->Draw("same");
-      derivatives[i]->Draw("same");
+      //histograms_KDE[i]->Draw("same");
+      //derivatives[i]->Draw("same");
 		}
 	}
   fEmbeddedCanvas->GetCanvas()->BuildLegend();
 
   // 두 번째 axis 그리기
+  /*
   fRightAxis = new TGaxis(204.8, yMin, 204.8, yMax, oldMin, oldMax, 510, "+L");
   fRightAxis->SetTitle(Form("Derivatives (%3.1f to %3.1f)",oldMin, oldMax));
   fRightAxis->SetTitleColor(kRed);
   fRightAxis->SetLineColor(kRed);
   fRightAxis->SetLabelColor(kRed);
   fRightAxis->Draw();
+  */
 
 	// 마커 그리기
+  /*
   TMarker* markers[4][2] = {
     {fDet1PulseStartMarker, fDet1PulseEndMarker},
     {fDet2PulseStartMarker, fDet2PulseEndMarker},
@@ -301,10 +516,11 @@ void DMSPlotter::DrawHistograms()
   if( fDet2PulseFound ) { fDet2PulseStartMarker->Draw(); fDet2PulseEndMarker->Draw(); }
   if( fChe1PulseFound ) { fChe1PulseStartMarker->Draw(); fChe1PulseEndMarker->Draw(); }
   if( fChe2PulseFound ) { fChe2PulseStartMarker->Draw(); fChe2PulseEndMarker->Draw(); }
+  */
 
 	// Threshold line 그리기
-	fDet1ThresholdLine->Draw();
-	fDet2ThresholdLine->Draw();
+	//fDet1ThresholdLine->Draw();
+	//fDet2ThresholdLine->Draw();
 
 
 	fEmbeddedCanvas->GetCanvas()->Update(); // 캔버스 업데이트
@@ -324,6 +540,20 @@ void DMSPlotter::DrawHistograms()
 }// }}}
 
 DMSPlotter::~DMSPlotter() {
+  delete fDet1PulseStartMarker;
+	delete fDet1PulseStartMarker;
+	delete fDet2PulseStartMarker;
+	delete fChe1PulseStartMarker;
+	delete fChe2PulseStartMarker;
+	delete fDet1PulseEndMarker;
+	delete fDet2PulseEndMarker;
+	delete fChe1PulseEndMarker;
+	delete fChe2PulseEndMarker;
+	delete fDet1ThresholdLine;
+	delete fDet2ThresholdLine;
+	delete fChe1ThresholdLine;
+	delete fChe2ThresholdLine;
+
 	Cleanup();
 }
 
@@ -331,7 +561,7 @@ void DMSPlotter::OnNextEventButtonClick() {
 	fEventNumber++;// {{{
 	std::cout << "////////////////////////////////////////////////////////////\nCurrent Event Number: " << fEventNumber << std::endl;
 
-	LoadHistograms();
+	LoadHistograms(fWorkDirectoryPath);
 	DrawHistograms();
 }// }}}
 
@@ -340,7 +570,7 @@ void DMSPlotter::OnPreviousEventButtonClick() {
 	std::cout << "////////////////////////////////////////////////////////////\nCurrent Event Number: " << fEventNumber << std::endl;
 
 	// 새로운 히스토그램 로드 및 그리기
-	LoadHistograms();
+	LoadHistograms(fWorkDirectoryPath);
 
 	DrawHistograms(); // 히스토그램 다시 그리기
 }// }}}
@@ -354,7 +584,7 @@ void DMSPlotter::OnGoToEventButtonClick() {
 		std::cout << "////////////////////////////////////////////////////////////\nCurrent Event Number: " << fEventNumber << '\n';
 
 		// 새로운 히스토그램 로드 및 그리기
-		LoadHistograms();
+		LoadHistograms(fWorkDirectoryPath);
 		DrawHistograms();
 	}
 	else

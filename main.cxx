@@ -26,12 +26,13 @@ int main(int argc, char *argv[])
   {
     std::cout << "GUI mode with file: " << vm["gui"].as<std::string>() << "\n";
     TApplication app("DMSPlotterApp", &argc, argv);
-    TFile* file = TFile::Open(vm["gui"].as<std::string>().data());
-    if( !file || file->IsZombie() ) {
-      std::cerr << "Error: Could not open file, or the IsZombie() returned false.\n";
-      return 1;
-    }
-    DMSPlotter* plotter = new DMSPlotter(gClient->GetRoot(), 800, 600, file);
+    //TFile* file = TFile::Open(vm["gui"].as<std::string>().data());
+    //if( !file || file->IsZombie() ) {
+    //  std::cerr << "Error: Could not open file, or the IsZombie() returned false.\n";
+    //  return 1;
+    //}
+    //std::cout << typeid(vm["gui"].as<std::string>().c_str()).name() << std::endl;
+    DMSPlotter* plotter = new DMSPlotter( gClient->GetRoot(), 800, 600, vm["gui"].as<std::string>().c_str() );
     app.Run();
     delete plotter;
   }
