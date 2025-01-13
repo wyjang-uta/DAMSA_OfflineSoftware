@@ -17,7 +17,7 @@ DMSDataProcess::DMSDataProcess(Char_t* pInputFile, Char_t* pOutputFile)
   fInputFileName = pInputFile;
   fOutputFileName = pOutputFile;
   fInputFile = TFile::Open(fInputFileName, "READ");
-	fMaxEventNumber = fInputFile->GetNkeys()/4;
+  fMaxEventNumber = fInputFile->GetNkeys()/4;
   fCherenkovInner = kFALSE;
   fCherenkovOuter = kFALSE;
   fOutputFile = new TFile(fOutputFileName, "RECREATE");
@@ -42,7 +42,6 @@ DMSDataProcess::DMSDataProcess(Char_t* pInputFile, Char_t* pOutputFile)
   fTree->Branch("lDet2PulseIntegralTail", &fDet2PulseIntegralTail, "lDet2PulseIntegralTail/F");
   fTree->Branch("lDet1PSD", &fDet1PSD, "lDet1PSD/F");
   fTree->Branch("lDet2PSD", &fDet2PSD, "lDet2PSD/F");
-
 }// }}}
 
 DMSDataProcess::~DMSDataProcess() {
