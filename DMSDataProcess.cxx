@@ -69,7 +69,6 @@ DMSDataProcess::DMSDataProcess(char* pInputDirectory, char* pOutputFile)
   fTree->Branch("lDet2PulseIntegralTail", &fDet2PulseIntegralTail, "lDet2PulseIntegralTail/F");
   fTree->Branch("lDet1PSD", &fDet1PSD, "lDet1PSD/F");
   fTree->Branch("lDet2PSD", &fDet2PSD, "lDet2PSD/F");
-
 }// }}}
 
 DMSDataProcess::~DMSDataProcess() {
