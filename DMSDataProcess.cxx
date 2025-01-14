@@ -1,7 +1,10 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <TMath.h>
 
@@ -12,20 +15,44 @@ DMSDataProcess::DMSDataProcess()
 {
 }
 
-DMSDataProcess::DMSDataProcess(Char_t* pInputFile, Char_t* pOutputFile)
+DMSDataProcess::DMSDataProcess(char* pInputDirectory, char* pOutputFile)
 {// {{{
-  fInputFileName = pInputFile;
+  fEventNumber = 1;
+  fChannelNumber = 0;
+  fInputDirectory = new char[strlen(pInputDirectory)+1];
+  strcpy(fInputDirectory, pInputDirectory);
+  std::cout << fInputDirectory << std::endl;
+  const char* filesToCheck[4] = { "wave_0.txt",
+                                  "wave_1.txt",
+                                  "wave_6.txt",
+                                  "wave_7.txt" };
+  char* fFullPathsToFiles[4];
+  for(int i = 0; i < 4; ++i)
+  {
+    fFullPathsToFiles[i] = new char[strlen(fInputDirectory) + strlen(filesToCheck[i])];
+    strcpy(fFullPathsToFiles[i], fInputDirectory);
+    strcat(fFullPathsToFiles[i], filesToCheck[i]);
+    std::cout << "Full path to file: " << fFullPathsToFiles[i] << std::endl;
+
+    fInputStream[i] = new std::ifstream(fFullPathsToFiles[i]);
+    if( fInputStream[i]->is_open() )
+      std::cout << fFullPathsToFiles[i] << " has been opened!" << std::endl;
+  }
+
   fOutputFileName = pOutputFile;
-  fInputFile = TFile::Open(fInputFileName, "READ");
-	fMaxEventNumber = fInputFile->GetNkeys()/4;
+	fMaxEventNumber = CountLinesInText()/1024;
+  std::cout << "Total number of events to process: " << fMaxEventNumber << std::endl;
   fCherenkovInner = kFALSE;
   fCherenkovOuter = kFALSE;
   fOutputFile = new TFile(fOutputFileName, "RECREATE");
   fTree = new TTree("DMSNtuple", "DAMSA Ntuple");
   fTree->Branch("lCherenkovInner", &fCherenkovInner, "lCherenkovInner/I");
   fTree->Branch("lCherenkovOuter", &fCherenkovOuter, "lCherenkovOuter/I");
-  fTree->Branch("lDet1MeanPedestal", &fDet1MeanPedestal, "lDet1MeanPedestal/F");
-  fTree->Branch("lDet2MeanPedestal", &fDet2MeanPedestal, "lDet2MeanPedestal/F");
+  fTree->Branch("lPreBaseline", fPreBaseline, "lPreBaseline[4]/F");
+  fTree->Branch("lPreBaseline_RMS", fPreBaseline_RMS, "lPreBaseline_RMS[4]/F");
+  fTree->Branch("lPostBaseline", fPostBaseline, "lPostBaseline[4]/F");
+  fTree->Branch("lPostBaseline_RMS", fPostBaseline_RMS, "lPostBaseline_RMS[4]/F");
+  fTree->Branch("lBaselineDifference", fBaselineDifference, "lBaselineDifference[4]/F");
   fTree->Branch("lDet1PulseFlag", &fDet1PulseFound, "lDet1PulseFlag/O");
   fTree->Branch("lDet2PulseFlag", &fDet2PulseFound, "lDet2PulseFlag/O");
   fTree->Branch("lDet1PulsePeak", &fDet1PulsePeak, "lDet1PulsePeak/F");
@@ -46,103 +73,72 @@ DMSDataProcess::DMSDataProcess(Char_t* pInputFile, Char_t* pOutputFile)
 }// }}}
 
 DMSDataProcess::~DMSDataProcess() {
+  delete fInputDirectory;
   delete fTree;
   delete fOutputFile;
+  for(int i = 0; i < 4; i++)
+  {
+    delete fFullPathsToFiles[i];
+    fInputStream[i]->close();
+    delete fInputStream[i];
+  }
 }
 
 void DMSDataProcess::ProcessFile()
 {// {{{
-  std::cout << "Start loop over the input file: " << fInputFileName << std::endl;
-  fOutputFile->cd();
-
+  std::cout << "ProcessFile()" << std::endl;
+  // variables for progress indicator
   Char_t symbols[] = {'-', '/', '|', '\\'};
   Int_t symbolIndex = 0;
   ULong64_t currentProgress = 0;
   ULong64_t newProgress = 0;
 
-  for( ULong64_t i = 0; i < fMaxEventNumber; ++i )
+  // loop over events
+  while( fEventNumber < fMaxEventNumber )
   {
-    newProgress = ( i * 100 ) / fMaxEventNumber;
+    // progress indicator
+    newProgress = ( fEventNumber * 100 ) / fMaxEventNumber;
     if( newProgress > currentProgress )
     {
       currentProgress = newProgress;
       // Print rotator
       std::cout << '\r'
-                << symbols[symbolIndex]
-                << " Progressing: " << std::setw(3) << currentProgress << "% ("
-                << i << "/" << fMaxEventNumber << ")"
-                << std::flush;
+        << symbols[symbolIndex]
+        << " Progressing: " << std::setw(3) << currentProgress << "% ("
+        << fEventNumber << "/" << fMaxEventNumber << ")"
+        << std::flush;
       symbolIndex = ( symbolIndex + 1 ) % 4;
     }
 
-    fDet1Histogram = (TH1D*)fInputFile->Get(Form("det1_evt_%d", i+1));
-    fDet2Histogram = (TH1D*)fInputFile->Get(Form("det2_evt_%d", i+1));
-    fChe1Histogram = (TH1D*)fInputFile->Get(Form("che1_evt_%d", i+1));
-    fChe2Histogram = (TH1D*)fInputFile->Get(Form("che2_evt_%d", i+1));
-    fDet1HistogramKDE = DMS_MathUtils::PerformKDE(fDet1Histogram);
-    fDet2HistogramKDE = DMS_MathUtils::PerformKDE(fDet2Histogram);
-    fChe1HistogramKDE = DMS_MathUtils::PerformKDE(fChe1Histogram);
-    fChe2HistogramKDE = DMS_MathUtils::PerformKDE(fChe2Histogram);
+    // loop over files
+    for(int f = 0; f < 4; ++f)  // loop over file index f = 0, 1, 2, 3; 0: wave_0.txt 1: wave_1.txt 2: wave_6.txt 3: wave_7.txt
+    {
+      // initialize variables
+      fChannelNumber = 0;
+      // read a single event
+      while( *fInputStream[f] >> fAdcValue[f][fChannelNumber] )
+      {
+        fChannelNumber++;
+        //std::cout << "Event: " << fEventNumber << ", File Index: " << f << ", ADC value at Channel (" << fChannelNumber - 1 << "): " << fAdcValue[f][fChannelNumber-1] << std::endl;
+        if( fChannelNumber == 1024 )
+        {
+          // do calculations here:
+          
+          
+          // end of event calculation
+          fTree->Fill();
+          break;
+        }
+      }
+    } // file loop ends
+    fEventNumber++;
+  } // event loop ends
 
-    // Calculate derivatives
-    fDet1HistogramKDE_prime = DMS_MathUtils::GetDerivative(fDet1HistogramKDE);
-    fDet2HistogramKDE_prime = DMS_MathUtils::GetDerivative(fDet2HistogramKDE);
-    fChe1HistogramKDE_prime = DMS_MathUtils::GetDerivative(fChe1HistogramKDE);
-    fChe2HistogramKDE_prime = DMS_MathUtils::GetDerivative(fChe2HistogramKDE);
-
-    // Determine the pulse range of detector 1
-    fDet1MeanPedestal   = DMS_MathUtils::GetPedestal(fDet1Histogram, 50, 70);
-    fDet1PulseFound     = DMS_MathUtils::GetPulseRange(fDet1MeanPedestal, &fDet1PulseStart, &fDet1PulseEnd, fDet1HistogramKDE);
-    fDet1PulseStartBin  = fDet1HistogramKDE->FindBin(fDet1PulseStart);
-    fDet1PulseEndBin    = fDet1HistogramKDE->FindBin(fDet1PulseEnd);
-    fDet1PulseIntegralTotal = (fDet1PulseEndBin - fDet1PulseStartBin + 1) * fDet1MeanPedestal - fDet1Histogram->Integral(fDet1PulseStartBin, fDet1PulseEndBin);
-
-    // Determine the pulse range of detector 2
-    fDet2MeanPedestal   = DMS_MathUtils::GetPedestal(fDet2Histogram, 1, 10);
-    fDet2PulseFound     = DMS_MathUtils::GetPulseRange(fDet2MeanPedestal, &fDet2PulseStart, &fDet2PulseEnd, fDet2HistogramKDE);
-    fDet2PulseStartBin  = fDet2HistogramKDE->FindBin(fDet2PulseStart);
-    fDet2PulseEndBin    = fDet2HistogramKDE->FindBin(fDet2PulseEnd);
-    fDet2PulseIntegralTotal = (fDet2PulseEndBin - fDet2PulseStartBin + 1) * fDet2MeanPedestal - fDet2Histogram->Integral(fDet2PulseStartBin, fDet2PulseEndBin);
-
-    FindPulsePeak();
-    FindPulseTail();
-
-    fDet1PulseIntegralTail = (fDet1PulseEndBin - fDet1PulseTailBin + 1) * fDet1MeanPedestal - fDet1Histogram->Integral(fDet1PulseTailBin, fDet1PulseEndBin);
-    fDet2PulseIntegralTail = (fDet2PulseEndBin - fDet2PulseTailBin + 1) * fDet2MeanPedestal - fDet2Histogram->Integral(fDet2PulseTailBin, fDet2PulseEndBin);
-
-    fDet1PSD = fDet1PulseIntegralTail / fDet1PulseIntegralTotal;
-    fDet2PSD = fDet2PulseIntegralTail / fDet2PulseIntegralTotal;
-
-    /*
-    std::cout << "\n(Detector1) Total Pulse Integral: " << fDet1PulseIntegralTotal << std::endl;
-    std::cout << "\n(Detector2) Total Pulse Integral: " << fDet2PulseIntegralTotal << std::endl;
-
-    std::cout << "(Detector1) Pulse start (ns): " << fDet1PulseStart << ", Pulse tail (ns): " << fDet1PulseTail << ", Pulse end (ns): " << fDet1PulseEnd << std::endl;
-    std::cout << "(Detector2) Pulse start (ns): " << fDet2PulseStart << ", Pulse tail (ns): " << fDet2PulseTail << ", Pulse end (ns): " << fDet2PulseEnd << std::endl;
-    */
-
-    // Pulse check for Cherenkov detectors
-    fChe1MeanPedestal = DMS_MathUtils::GetPedestal(fChe1Histogram, 1, 10);
-    fChe2MeanPedestal = DMS_MathUtils::GetPedestal(fChe1Histogram, 1, 10);
-    CheckCherenkovSignals();
-
-    fTree->Fill();
-  }
-  std::cout << '\r'
-            << symbols[symbolIndex]
-            << " Progressing: " << std::setw(3) << "100% ("
-            << fMaxEventNumber << "/" << fMaxEventNumber << ")"
-            << std::endl;
-  symbolIndex = ( symbolIndex + 1 ) % 4;
-
-  fTree->Write();
-  fOutputFile->Close();
-  fInputFile->cd();
-  fInputFile->Close();
 }// }}}
 
 void DMSDataProcess::CheckCherenkovSignals()
 {// {{{
+/*
   Float_t fCherenkovSearchStart = 150.0f;
   Float_t fCherenkovSearchEnd   = 200.0f;
   Int_t che1StartBin = fChe1HistogramKDE->FindBin(fCherenkovSearchStart);
@@ -151,9 +147,9 @@ void DMSDataProcess::CheckCherenkovSignals()
   Float_t fChe1Minimum;
   Float_t fChe2Minimum;
   Float_t che1_value;
-  Float_t che1_minimum = fChe1MeanPedestal;
+  Float_t che1_minimum = fChe1PreBaseline;
   Float_t che2_value;
-  Float_t che2_minimum = fChe2MeanPedestal;
+  Float_t che2_minimum = fChe2PreBaseline;
 
   for(Int_t i = che1StartBin; i <= che1EndBin; ++i )
   {
@@ -165,22 +161,24 @@ void DMSDataProcess::CheckCherenkovSignals()
       che2_minimum = che2_value;
   }
 
-  if( che1_minimum < fChe1MeanPedestal - 20.0f )
+  if( che1_minimum < fChe1PreBaseline - 20.0f )
   {
     fCherenkovInner = kTRUE;
   }
-  if( che2_minimum < fChe2MeanPedestal - 20.0f )
+  if( che2_minimum < fChe2PreBaseline - 20.0f )
   {
     fCherenkovOuter = kTRUE;
   }
+  */
 }// }}}
 
 void DMSDataProcess::FindPulsePeak()
 {// {{{
+/*
   Float_t det1_value;
-  Float_t det1_minimum = fDet1MeanPedestal;
+  Float_t det1_minimum = fDet1PreBaseline;
   Float_t che2_value;
-  Float_t che2_minimum = fDet2MeanPedestal;
+  Float_t che2_minimum = fDet2PreBaseline;
   Float_t det1_minimum_time;
   Float_t che2_minimum_time;
 
@@ -203,23 +201,25 @@ void DMSDataProcess::FindPulsePeak()
   fDet2PulsePeak = che2_minimum;
   fDet1PulsePeakTime = det1_minimum_time;
   fDet2PulsePeakTime = che2_minimum_time;
+  */
 }// }}}
 
 void DMSDataProcess::FindPulseTail()
 {// {{{
+/*
   Int_t det1_peak_bin = fDet1HistogramKDE->FindBin(fDet1PulsePeakTime);
   Int_t det2_peak_bin = fDet2HistogramKDE->FindBin(fDet2PulsePeakTime);
   Float_t det1_value;
   Float_t det2_value;
   Float_t det1_inverted_value;
   Float_t det2_inverted_value;
-  Float_t det1_tail_threshold = (fDet1MeanPedestal - fDet1PulsePeak) * 0.3f;
-  Float_t det2_tail_threshold = (fDet2MeanPedestal - fDet2PulsePeak) * 0.3f;
+  Float_t det1_tail_threshold = (fDet1PreBaseline - fDet1PulsePeak) * 0.3f;
+  Float_t det2_tail_threshold = (fDet2PreBaseline - fDet2PulsePeak) * 0.3f;
 
   for( Int_t i = det1_peak_bin; i <= fDet1PulseEndBin; ++i )
   {
     det1_value = fDet1HistogramKDE->GetBinContent(i);
-    det1_inverted_value = fDet1MeanPedestal - det1_value;
+    det1_inverted_value = fDet1PreBaseline - det1_value;
 
     if( det1_inverted_value < det1_tail_threshold )
     {
@@ -231,7 +231,7 @@ void DMSDataProcess::FindPulseTail()
   for( Int_t i = det2_peak_bin; i <= fDet2PulseEndBin; ++i )
   {
     det2_value = fDet2HistogramKDE->GetBinContent(i);
-    det2_inverted_value = fDet1MeanPedestal - det1_value;
+    det2_inverted_value = fDet1PreBaseline - det1_value;
 
     if( det2_inverted_value < det2_tail_threshold )
     {
@@ -240,5 +240,37 @@ void DMSDataProcess::FindPulseTail()
       break;
     }
   }
+  */
 }// }}}
 
+ULong64_t DMSDataProcess::CountLinesInText()
+{// {{{
+  std::string fileToCheck(fInputDirectory);
+  fileToCheck += "wave_0.txt";
+  int fd = open(fileToCheck.c_str(), O_RDONLY);
+  if (fd == -1) {
+    perror("Error opening file");
+    return -1;
+  }
+
+  char buffer[4096]; // 블록 크기
+  ssize_t bytesRead;
+  long lineCount = 0;
+
+  while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
+    for (ssize_t i = 0; i < bytesRead; ++i) {
+      if (buffer[i] == '\n') {
+        ++lineCount;
+      }
+    }
+  }
+
+  if (bytesRead == -1) {
+    perror("Error reading file");
+    close(fd);
+    return -1;
+  }
+
+  close(fd);
+  return lineCount;
+}// }}}

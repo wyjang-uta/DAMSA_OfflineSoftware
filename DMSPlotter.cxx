@@ -101,13 +101,7 @@ DMSPlotter::DMSPlotter(
     const char* inputDirectoryName) :
   TGMainFrame(p, w, h),
   fEventNumber(1)
-{
-  // Initialize histograms
-  fDet1Histogram = new TH1D("h_det1", "Detector 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
-  fDet2Histogram = new TH1D("h_det2", "Detector 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
-  fChe1Histogram = new TH1D("h_che1", "Cherenkov 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
-  fChe2Histogram = new TH1D("h_che2", "Cherenkov 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
-
+{// {{{
   // Set work directory
   fWorkDirectoryPath = new char[strlen(inputDirectoryName)+1];
   strcpy(fWorkDirectoryPath,inputDirectoryName);
@@ -133,6 +127,20 @@ DMSPlotter::DMSPlotter(
       exit(EXIT_FAILURE);
     }
   }
+  for(int i = 0; i < 4; ++i)
+  {
+    fInputStream[i] = new std::ifstream(filesToCheck.at(i));
+    if( fInputStream[i]->is_open() )
+    {
+      std::cout << filesToCheck.at(i) << " successfully opened! (is_open() value: " << fInputStream[i]->is_open() << ")." << std::endl;
+    }
+  }
+
+  // Initialize histograms
+  fDet1Histogram = new TH1D("h_det1", "Detector 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fDet2Histogram = new TH1D("h_det2", "Detector 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fChe1Histogram = new TH1D("h_che1", "Cherenkov 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fChe2Histogram = new TH1D("h_che2", "Cherenkov 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
 
   // Add a frame to display the histogram.
 	fButtonFrameHeight = 10;
@@ -201,10 +209,35 @@ DMSPlotter::DMSPlotter(
 	Resize(w,h);  // 너비 200, 높이 100으로 설정, here the +1 is a magic number. 
 	MapSubwindows();   // 모든 서브 윈도우를 맵핑
 	MapWindow();       // 메인 프레임을 맵핑하여 표시
-}
+}// }}}
+
+DMSPlotter::~DMSPlotter()
+{// {{{
+  for(int i = 0; i < 4; i++)
+  {
+    fInputStream[i]->close();
+    delete fInputStream[i];
+    fInputStream[i] = nullptr;
+  }
+  delete fDet1PulseStartMarker;
+	delete fDet1PulseStartMarker;
+	delete fDet2PulseStartMarker;
+	delete fChe1PulseStartMarker;
+	delete fChe2PulseStartMarker;
+	delete fDet1PulseEndMarker;
+	delete fDet2PulseEndMarker;
+	delete fChe1PulseEndMarker;
+	delete fChe2PulseEndMarker;
+	delete fDet1ThresholdLine;
+	delete fDet2ThresholdLine;
+	delete fChe1ThresholdLine;
+	delete fChe2ThresholdLine;
+
+	Cleanup();
+}// }}}
 
 ULong64_t DMSPlotter::CountLinesInText()
-{
+{// {{{
   std::string fileToCheck(fWorkDirectoryPath);
   fileToCheck += "wave_1.txt";
   int fd = open(fileToCheck.c_str(), O_RDONLY);
@@ -233,7 +266,7 @@ ULong64_t DMSPlotter::CountLinesInText()
 
   close(fd);
   return lineCount;
-}
+}// }}}
 
 void DMSPlotter::LoadHistograms()
 {// {{{
@@ -324,18 +357,12 @@ void DMSPlotter::LoadHistograms()
 }// }}}
 
 void DMSPlotter::LoadHistograms(char* inputDirectoryName)
-{
-  std::vector<std::string> filePaths = {
-    std::string(inputDirectoryName) + "wave_0.txt",   // detector 1
-    std::string(inputDirectoryName) + "wave_1.txt",   // detector 2
-    std::string(inputDirectoryName) + "wave_6.txt",   // cherenkov inner
-    std::string(inputDirectoryName) + "wave_7.txt"    // cherenkov outer
-  };
-
+{// {{{
   fDet1Histogram->Reset();
   fDet2Histogram->Reset();
   fChe1Histogram->Reset();
   fChe2Histogram->Reset();
+  for(int i = 0; i < 1024; i++ ) fValues[i] = 0.0f;
 
   std::vector<TH1D*> histograms = {
     fDet1Histogram,
@@ -344,41 +371,26 @@ void DMSPlotter::LoadHistograms(char* inputDirectoryName)
     fChe2Histogram
   };
 
-  std::ifstream in;
   // Move the file pointer according to the fEventNumber value.
-  const size_t float_size = sizeof(float);
-  unsigned long currentLine = fEventNumber * 1024;
-  unsigned long targetLine = ( fEventNumber + 1 ) * 1024;
+  const size_t size_per_line = 12; // this includes a null character
+  unsigned long targetByte = size_per_line * ((( fEventNumber - 1 ) * 1024 ) );
 
   int lineCount = 0;
   for( int i = 0 ; i < 4; i++ )
   {
-    std::cout << "Attempt to open file: " << filePaths.at(i) << std::endl;
-    in.open(filePaths.at(i).c_str());
-    if( !in.is_open() )
-    {
-      std::cerr << "Error: Failed to open file: " << filePaths.at(i) << "!\n";
-      exit(EXIT_FAILURE);
-    }
     // Move the file pointer
-    in.seekg((targetLine - 1) * float_size, std::ios::beg);
+    fInputStream[i]->seekg(targetByte);
     // read the file
-    while(in >> fValues[lineCount++])
+    while(*fInputStream[i] >> fValues[lineCount++])
     {
+      //if( i == 0)
+      //  std::cout << lineCount << ":  " << fValues[lineCount-1] << std::endl;
       histograms.at(i)->SetBinContent(lineCount, fValues[lineCount-1]);
       if( lineCount == 1024 ) break;
     }
-
-
-    std::cout << "File " << filePaths.at(i) << " has been successfully filled, the histogram " << histograms.at(i)->GetName() << " has " << histograms.at(i)->GetEntries() << " entries." << std::endl;
-    in.close();
     lineCount = 0;
   }
-  fDet1Histogram->Print();
-  fDet2Histogram->Print();
-  fChe1Histogram->Print();
-  fChe2Histogram->Print();
-}
+}// }}}
 
 void DMSPlotter::DrawHistograms()
 {// {{{
@@ -422,13 +434,14 @@ void DMSPlotter::DrawHistograms()
 
 
 	// y축 범위 계산
-	float minY = 1e10;
-	float maxY = -1e10;
-	for (int i = 0; i < 4; ++i) {
-		float histMin = histograms[i]->GetMinimum();
-		float histMax = histograms[i]->GetMaximum();
-		if (histMin < minY) minY = histMin;
-		if (histMax > maxY) maxY = histMax;
+	float minY = 1e6;
+	float maxY = -1e6;
+	for (int i = 0; i < 4; ++i)
+  {
+    float histMin = histograms[i]->GetMinimum();
+    float histMax = histograms[i]->GetMaximum();
+    if (histMin < minY) minY = histMin;
+    if (histMax > maxY) maxY = histMax;
 	}
 	float yMin = minY * 0.9; // 최소값보다 10% 낮은 값
 	float yMax = maxY * 1.1; // 최대값보다 10% 높은 값
@@ -467,8 +480,9 @@ void DMSPlotter::DrawHistograms()
   */
 
 	// 히스토그램 그리기
+  std::cout << "yMin: " << yMin << ", yMax: " << yMax << std::endl;
 	for (int i = 0; i < 4; ++i) {
-	//	histograms[i]->SetAxisRange(yMin, yMax, "Y");
+		histograms[i]->SetAxisRange(0, 4096, "Y");
 		histograms[i]->SetLineColor(i+1);
 
 		if (i == 0) {
@@ -538,24 +552,6 @@ void DMSPlotter::DrawHistograms()
 	}
 
 }// }}}
-
-DMSPlotter::~DMSPlotter() {
-  delete fDet1PulseStartMarker;
-	delete fDet1PulseStartMarker;
-	delete fDet2PulseStartMarker;
-	delete fChe1PulseStartMarker;
-	delete fChe2PulseStartMarker;
-	delete fDet1PulseEndMarker;
-	delete fDet2PulseEndMarker;
-	delete fChe1PulseEndMarker;
-	delete fChe2PulseEndMarker;
-	delete fDet1ThresholdLine;
-	delete fDet2ThresholdLine;
-	delete fChe1ThresholdLine;
-	delete fChe2ThresholdLine;
-
-	Cleanup();
-}
 
 void DMSPlotter::OnNextEventButtonClick() {
 	fEventNumber++;// {{{

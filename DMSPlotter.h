@@ -44,8 +44,9 @@ class DMSPlotter : public TGMainFrame {
     TGaxis*              fRightAxis;
 
     // Data related member variables
+    std::ifstream*       fInputStream[4];
     TFile*		           fHistFile;             // when program reads data from histogram
-    char*              fWorkDirectoryPath;    // when program reads data directly from text file
+    char*                fWorkDirectoryPath;    // when program reads data directly from text file
     UInt_t		           fEventNumber;
     UInt_t		           fMaxEventNumber;
     TH1D*                fDet1Histogram;

@@ -43,13 +43,13 @@ int main(int argc, char *argv[])
     {
       std::cout << "DAMSA Offline Software v0.1" << std::endl;
       std::cout << "//Batch mode//" << std::endl;
-      std::cout << "Input file: " << files[0] << std::endl;
+      std::cout << "Input directory: " << files[0] << std::endl;
       std::cout << "Output file: " << files[1] << std::endl;
-      char inputFileName[128];
-      char outputFileName[128];
-      strcpy(inputFileName, files[0].data());
+      char inputDirectory[256];
+      char outputFileName[256];
+      strcpy(inputDirectory, files[0].data());
       strcpy(outputFileName, files[1].data());
-      DMSDataProcess* dataProcess = new DMSDataProcess(inputFileName, outputFileName);
+      DMSDataProcess* dataProcess = new DMSDataProcess(inputDirectory, outputFileName);
       dataProcess->ProcessFile();
     }
     else
