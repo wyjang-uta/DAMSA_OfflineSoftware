@@ -137,10 +137,10 @@ DMSPlotter::DMSPlotter(
   }
 
   // Initialize histograms
-  fDet1Histogram = new TH1D("h_det1", "Detector 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
-  fDet2Histogram = new TH1D("h_det2", "Detector 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
-  fChe1Histogram = new TH1D("h_che1", "Cherenkov 1;Time (ns);ADC", 1024, 0.0f, 204.8f);
-  fChe2Histogram = new TH1D("h_che2", "Cherenkov 2;Time (ns);ADC", 1024, 0.0f, 204.8f);
+  fDet1Histogram = new TH1D("h_det1", "Detector 1;Time (ns);ADC", 1024, 0.0f, 1024.0f);
+  fDet2Histogram = new TH1D("h_det2", "Detector 2;Time (ns);ADC", 1024, 0.0f, 1024.0f);
+  fChe1Histogram = new TH1D("h_che1", "Cherenkov 1;Time (ns);ADC", 1024, 0.0f, 1024.0f);
+  fChe2Histogram = new TH1D("h_che2", "Cherenkov 2;Time (ns);ADC", 1024, 0.0f, 1024.0f);
 
   // Add a frame to display the histogram.
 	fButtonFrameHeight = 10;

@@ -53,22 +53,59 @@ DMSDataProcess::DMSDataProcess(char* pInputDirectory, char* pOutputFile)
   fTree->Branch("lPostBaseline", fPostBaseline, "lPostBaseline[4]/F");
   fTree->Branch("lPostBaseline_RMS", fPostBaseline_RMS, "lPostBaseline_RMS[4]/F");
   fTree->Branch("lBaselineDifference", fBaselineDifference, "lBaselineDifference[4]/F");
-  fTree->Branch("lDet1PulseFlag", &fDet1PulseFound, "lDet1PulseFlag/O");
-  fTree->Branch("lDet2PulseFlag", &fDet2PulseFound, "lDet2PulseFlag/O");
-  fTree->Branch("lDet1PulsePeak", &fDet1PulsePeak, "lDet1PulsePeak/F");
-  fTree->Branch("lDet2PulsePeak", &fDet2PulsePeak, "lDet2PulsePeak/F");
-  fTree->Branch("lDet1PulseStart", &fDet1PulseStart, "lDet1PulseStart/F");
-  fTree->Branch("lDet1PulseTail", &fDet1PulseTail, "lDet1PulseTail/F");
-  fTree->Branch("lDet1PulseEnd", &fDet1PulseEnd, "lDet1PulseEnd/F");
-  fTree->Branch("lDet2PulseStart", &fDet2PulseStart, "lDet2PulseStart/F");
-  fTree->Branch("lDet2PulseTail", &fDet2PulseTail, "lDet2PulseTail/F");
-  fTree->Branch("lDet2PulseEnd", &fDet2PulseEnd, "lDet2PulseEnd/F");
-  fTree->Branch("lDet1PulseIntegralTotal", &fDet1PulseIntegralTotal, "lDet1PulseIntegralTotal/F");
-  fTree->Branch("lDet1PulseIntegralTail", &fDet1PulseIntegralTail, "lDet1PulseIntegralTail/F");
-  fTree->Branch("lDet2PulseIntegralTotal", &fDet2PulseIntegralTotal, "lDet2PulseIntegralTotal/F");
-  fTree->Branch("lDet2PulseIntegralTail", &fDet2PulseIntegralTail, "lDet2PulseIntegralTail/F");
-  fTree->Branch("lDet1PSD", &fDet1PSD, "lDet1PSD/F");
-  fTree->Branch("lDet2PSD", &fDet2PSD, "lDet2PSD/F");
+  fTree->Branch("lPulseFlag", fPulseFlag, "lPulseFlag[4]/I");
+  fTree->Branch("lPulsePeak", fPulsePeak, "lPulsePeak[4]/F");
+  fTree->Branch("lPulsePeakTimeBin", fPulsePeakTimeBin, "lPulsePeakTimeBin[4]/I");
+  fTree->Branch("lPulseStart", &fPulseStartBin, "lPulseStartBin[4]/F");
+  fTree->Branch("lPulseTail", &fPulseTailBin, "lPulseTailBin[4]/F");
+  fTree->Branch("lPulseEnd", &fPulseEndBin, "lPulseEndBin[4]/F");
+  fTree->Branch("lPulseIntegralTotal", fPulseIntegralTotal, "lPulseIntegralTotal[4]/F");
+  fTree->Branch("lPulseIntegralTail", fPulseIntegralTail, "lPulseIntegralTail[4]/F");
+  fTree->Branch("lPSD", fPSD, "lPSD[4]/F");
+
+  fPreBaseSearch_i[0] = 0;
+  fPreBaseSearch_f[0] = 20;
+  fPreBaseSearchWidth[0] = fPreBaseSearch_f[0] - fPreBaseSearch_i[0];
+  fPostBaseSearch_i[0] = 980;
+  fPostBaseSearch_f[0] = 1000;
+  fPostBaseSearchWidth[0] = fPostBaseSearch_f[0] - fPostBaseSearch_i[0];
+  fPrePulseSearch_i[0] = 300;
+  fPrePulseSearch_f[0] = 600;
+  fPostPulseSearch_i[0] = 800;
+  fPostPulseSearch_f[0] = 1000;
+
+  fPreBaseSearch_i[1] = 0;
+  fPreBaseSearch_f[1] = 20;
+  fPreBaseSearchWidth[1] = fPreBaseSearch_f[1] - fPreBaseSearch_i[1];
+  fPostBaseSearch_i[1] = 980;
+  fPostBaseSearch_f[1] = 1000;
+  fPostBaseSearchWidth[1] = fPostBaseSearch_f[1] - fPostBaseSearch_i[1];
+  fPrePulseSearch_i[1] = 0;
+  fPrePulseSearch_f[1] = 400;
+  fPostPulseSearch_i[1] = 400;
+  fPostPulseSearch_f[1] = 1000;
+
+  fPreBaseSearch_i[2] = 0;
+  fPreBaseSearch_f[2] = 20;
+  fPreBaseSearchWidth[2] = fPreBaseSearch_f[2] - fPreBaseSearch_i[2];
+  fPostBaseSearch_i[2] = 980;
+  fPostBaseSearch_f[2] = 1000;
+  fPostBaseSearchWidth[2] = fPostBaseSearch_f[2] - fPostBaseSearch_i[2];
+  fPrePulseSearch_i[2] = 0;
+  fPrePulseSearch_f[2] = 400;
+  fPostPulseSearch_i[2] = 400;
+  fPostPulseSearch_f[2] = 1000;
+
+  fPreBaseSearch_i[3] = 300;
+  fPreBaseSearch_f[3] = 600;
+  fPreBaseSearchWidth[3] = fPreBaseSearch_f[3] - fPreBaseSearch_i[3];
+  fPostBaseSearch_i[3] = 980;
+  fPostBaseSearch_f[3] = 1000;
+  fPostBaseSearchWidth[3] = fPostBaseSearch_f[3] - fPostBaseSearch_i[3];
+  fPrePulseSearch_i[3] = 0;
+  fPrePulseSearch_f[3] = 400;
+  fPostPulseSearch_i[3] = 400;
+  fPostPulseSearch_f[3] = 1000;
 }// }}}
 
 DMSDataProcess::~DMSDataProcess() {
@@ -92,6 +129,9 @@ void DMSDataProcess::ProcessFile()
   ULong64_t currentProgress = 0;
   ULong64_t newProgress = 0;
 
+  const float constFractionRate = 0.05;
+  const float tailFractionRate = 0.30f;
+
   // loop over events
   while( fEventNumber < fMaxEventNumber )
   {
@@ -114,16 +154,126 @@ void DMSDataProcess::ProcessFile()
     {
       // initialize variables
       fChannelNumber = 0;
+      fPulsePeak[f] = 9999.f;
+      fPulseStartBin[f] = -1;
+      fPulseTailBin[f] = -1;
+      fPulseEndBin[f] = -1;
+      fPulseFlag[f] = 0;
       // read a single event
       while( *fInputStream[f] >> fAdcValue[f][fChannelNumber] )
       {
         fChannelNumber++;
+        // find minimum value which is pulse peak candidate
+        if( fAdcValue[f][fChannelNumber-1] < fPulsePeak[f] )
+        {
+          fPulsePeak[f] = fAdcValue[f][fChannelNumber-1];
+          fPulsePeakTimeBin[f] = fChannelNumber-1;
+        }
+
         //std::cout << "Event: " << fEventNumber << ", File Index: " << f << ", ADC value at Channel (" << fChannelNumber - 1 << "): " << fAdcValue[f][fChannelNumber-1] << std::endl;
         if( fChannelNumber == 1024 )
         {
+          fPreBaseline[f] = 0.0;
           // do calculations here:
-          
-          
+          for( int i = fPreBaseSearch_i[f]; i < fPreBaseSearch_f[f]; ++i )
+          {
+            fPreBaseline[f] += fAdcValue[f][i];
+            fPreBaseline_RMS[f] += fAdcValue[f][i] * fAdcValue[f][i];
+          }
+          fPreBaseline[f] /= (Float_t)fPreBaseSearchWidth[f];
+          fPreBaseline_RMS[f] = sqrt( fPreBaseline_RMS[f]/fPreBaseSearchWidth[f] - fPreBaseline[f] * fPreBaseline[f]);
+
+          fPostBaseline[f] = 0.0;
+          for( int i = fPostBaseSearch_i[f]; i < fPostBaseSearch_f[f]; ++i )
+          {
+            fPostBaseline[f] += fAdcValue[f][i];
+            fPostBaseline_RMS[f] += fAdcValue[f][i] * fAdcValue[f][i];
+          }
+          fPostBaseline[f] /= (Float_t)fPostBaseSearchWidth[f];
+          fPostBaseline_RMS[f] = sqrt( fPostBaseline_RMS[f]/fPostBaseSearchWidth[f] - fPostBaseline[f] * fPostBaseline[f] );
+
+          // determine the baseline
+          fBaseline[f] = ( fPostBaseline[f] > fPreBaseline[f] ) ? fPostBaseline[f] : fPreBaseline[f];
+          // determine the peak height
+          fPulsePeak[f] = fBaseline[f] - fPulsePeak[f];
+          if( fPulsePeak[f] < 15 )
+          {
+            fPulseFlag[f] = 0;
+          }
+          else
+            fPulseFlag[f] = 1;
+
+          // find pulse range
+          if( f == 2 || f == 3 )
+          { // set cherenkov peak search area
+            fPrePulseSearch_i[f] = fPulsePeakTimeBin[f] - 50;
+            fPrePulseSearch_f[f] = fPulsePeakTimeBin[f];
+            fPostPulseSearch_i[f] = fPulsePeakTimeBin[f] + 1;
+            fPostPulseSearch_f[f] = fPulsePeakTimeBin[f] + 50;
+          }
+          // pulse start
+          for( int i = fPrePulseSearch_i[f]; i < fPrePulseSearch_f[f]; ++i )
+          {
+            if( fPulseFlag[f] == 0 ) break;
+            if( fAdcValue[f][i] < fPreBaseline[f] - fPulsePeak[f] * constFractionRate && fPulseStartBin[f] == -1 )
+              fPulseStartBin[f] = i;
+          }
+
+          // pulse end
+          for( int i = fPostPulseSearch_i[f]; i < fPostPulseSearch_f[f]; ++i )
+          {
+            if( fPulseFlag[f] == 0 ) break;
+            if( fAdcValue[f][i] > fPostBaseline[f] - fPulsePeak[f] * constFractionRate && fPulseEndBin[f] == -1 )
+              fPulseEndBin[f] = i;
+          }
+
+          // find the pulse tail time
+          for( int i = fPulseEndBin[f]; i > fPulsePeakTimeBin[f]; --i )
+          {
+            if( fPulseFlag[f] == 0 ) break;
+            float signal = fBaseline[f] - fAdcValue[f][i];
+            if( signal > fPulsePeak[f] * tailFractionRate )
+            {
+              fPulseTailBin[f] = i;
+              break;
+            }
+          }
+
+          // integrate charge
+          fPulseIntegralTotal[f] = 0.0f;
+          fPulseIntegralTail[f]  = 0.0f;
+          fPSD[f] = 0.0f;
+          for( int i = fPulseStartBin[f]; i < fPulseEndBin[f]; ++i )
+          {
+            if( fPulseFlag[f] == 0 ) break;
+            float signal = fBaseline[f] - fAdcValue[f][i];
+            fPulseIntegralTotal[f] += signal;
+            if( i > fPulseTailBin[f] )
+              fPulseIntegralTail[f] += signal;
+          }
+          fPSD[f] = fPulseIntegralTail[f]/fPulseIntegralTotal[f];
+
+          /*
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", baseline: " << fPreBaseline[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", baseline: " << fPreBaseline_RMS[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", baseline: " << fPostBaseline[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", baseline: " << fPostBaseline_RMS[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse minimum: " << fPulsePeak[f] << std::endl;
+          if(fPulsePeak[f] == 0)  std::cout << "Event: " << fEventNumber << ", -- No Pulse -- " << fPulsePeak[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse peak: " << fPulsePeak[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse time: " << fPulsePeakTimeBin[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse start threshold: " << fPreBaseline[f] - fPulsePeak[f] * constFractionRate << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse start bin: " << fPulseStartBin[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse end threshold: " << fPostBaseline[f] - fPulsePeak[f] * constFractionRate << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse end bin: " << fPulseEndBin[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", pulse tail bin: " << fPulseTailBin[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", Integral(Total): " << fPulseIntegralTotal[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", Integral(Tail): " << fPulseIntegralTail[f] << std::endl;
+          std::cout << "Event: " << fEventNumber << ", File: " << f << ", PSD: " << fPSD[f] << std::endl;
+
+          std::cout << std::endl;
+          */
+
           // end of event calculation
           fTree->Fill();
           break;
@@ -131,7 +281,12 @@ void DMSDataProcess::ProcessFile()
       }
     } // file loop ends
     fEventNumber++;
+    //if( fEventNumber == 3 ) break;
   } // event loop ends
+
+  fTree->Write();
+  fOutputFile->Close();
+  std::cout << "Writing " << fOutputFile->GetName() << " has been done!" << std::endl;
 
 }// }}}
 

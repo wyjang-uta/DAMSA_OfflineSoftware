@@ -62,6 +62,8 @@ int main(int argc, char *argv[])
     std::cerr << "Invalid arguments. Use --help for usage.\n";
   }
 
+  std::cout << "Program finished!" << std::endl;
+
   return 0;
 }
 
