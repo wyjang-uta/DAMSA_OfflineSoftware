@@ -241,7 +241,7 @@ void DMSDataProcess::ProcessFile()
             }
           }
           */
-          fPulseTailBin[f] = fPulseStartBin[f] + 500;
+          fPulseTailBin[f] = fPulseStartBin[f] + 250;
 
           // integrate charge
           fPulseIntegralTotal[f] = 0.0f;
