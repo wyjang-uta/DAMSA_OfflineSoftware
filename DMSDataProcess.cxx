@@ -129,7 +129,7 @@ void DMSDataProcess::ProcessFile()
   ULong64_t currentProgress = 0;
   ULong64_t newProgress = 0;
 
-  const float constFractionRate = 0.05;
+  const float constFractionRate = 0.05f;
   const float tailFractionRate = 0.30f;
 
   // loop over events
@@ -204,7 +204,7 @@ void DMSDataProcess::ProcessFile()
             fPulseFlag[f] = 1;
 
           // find pulse range
-          if( f == 2 || f == 3 )
+          if( f == 2 || f == 3 ) // for cherenkov signals
           { // set cherenkov peak search area
             fPrePulseSearch_i[f] = fPulsePeakTimeBin[f] - 50;
             fPrePulseSearch_f[f] = fPulsePeakTimeBin[f];
@@ -228,6 +228,8 @@ void DMSDataProcess::ProcessFile()
           }
 
           // find the pulse tail time
+          //  --> replace this by constant bins from the pulse start
+          /*
           for( int i = fPulseEndBin[f]; i > fPulsePeakTimeBin[f]; --i )
           {
             if( fPulseFlag[f] == 0 ) break;
@@ -238,6 +240,8 @@ void DMSDataProcess::ProcessFile()
               break;
             }
           }
+          */
+          fPulseTailBin[f] = fPulseStartBin[f] + 500;
 
           // integrate charge
           fPulseIntegralTotal[f] = 0.0f;
