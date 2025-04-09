@@ -41,14 +41,22 @@ add_custom_command(
   ${CMAKE_CURRENT_SOURCE_DIR}/LinkDef.h
 )
 
-# 실행 파일 생성
-add_executable(dmssoft ${SOURCES})
+# Build the ROOT dictionary as a shared library
+add_library(dmsdict SHARED
+  DMSPlotter.cxx
+  DMSMathUtils.cxx
+  DMSDataProcess.cxx
+  ${CMAKE_CURRENT_BINARY_DIR}/DMSSoft_Dict.cxx
+)
 
-# 링크할 라이브러리
-target_link_libraries(dmssoft ${ROOT_LIBRARIES} Boost::program_options)
+target_include_directories(dmsdict PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(dmsdict ${ROOT_LIBRARIES})
+
+# Main executable
+add_executable(dmssoft main.cxx)
+target_link_libraries(dmssoft dmsdict Boost::program_options stdc++fs)
 
 # 클린 규칙
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "DMSSoft_Dict.cxx;DMSSoft_Dict_rdict.pcm")
 
 target_link_libraries(dmssoft stdc++fs)
-
