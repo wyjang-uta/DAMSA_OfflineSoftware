@@ -49,3 +49,6 @@ target_link_libraries(dmssoft ${ROOT_LIBRARIES} Boost::program_options)
 
 # 클린 규칙
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "DMSSoft_Dict.cxx;DMSSoft_Dict_rdict.pcm")
+
+target_link_libraries(dmssoft stdc++fs)
+
