@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
     //  return 1;
     //}
     //std::cout << typeid(vm["gui"].as<std::string>().c_str()).name() << std::endl;
-    DMSPlotter* plotter = new DMSPlotter( gClient->GetRoot(), 800, 600, vm["gui"].as<std::string>().c_str() );
+    DMSPlotter* plotter = new DMSPlotter(gClient->GetRoot(), 800, 600, vm["gui"].as<std::string>());
+
     app.Run();
     delete plotter;
   }
@@ -66,4 +67,3 @@ int main(int argc, char *argv[])
 
   return 0;
 }
-
